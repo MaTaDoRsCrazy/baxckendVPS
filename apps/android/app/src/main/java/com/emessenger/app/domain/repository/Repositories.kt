@@ -12,6 +12,7 @@ interface AuthRepository {
     val session: Flow<AuthSessionModel?>
     suspend fun login(identifier: String, password: String): AuthSessionModel
     suspend fun register(username: String, email: String?, phone: String?, password: String): AuthSessionModel
+    suspend fun updateProfile(username: String, email: String?, phone: String?): AuthSessionModel?
     suspend fun logout()
 }
 

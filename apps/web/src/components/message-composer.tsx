@@ -55,10 +55,10 @@ export function MessageComposer({ conversationId }: { conversationId: string }) 
           }}
           rows={2}
           className="field min-h-12 resize-none"
-          placeholder="Type your message"
+          placeholder="Напишите сообщение"
         />
         <button className="primary-btn" onClick={() => void sendMessage()}>
-          Send
+          Отправить
         </button>
       </div>
     </div>

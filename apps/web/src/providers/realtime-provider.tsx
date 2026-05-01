@@ -181,7 +181,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 export function useRealtime() {
   const value = useContext(RealtimeContext);
   if (!value) {
-    throw new Error("useRealtime must be used within RealtimeProvider");
+    throw new Error("useRealtime должен использоваться внутри RealtimeProvider");
   }
   return value;
 }

@@ -11,14 +11,14 @@ export function AuditLogPage() {
   const rows = (data?.data ?? []) as Array<any>;
 
   return (
-    <TableCard title="Audit Log" subtitle="Every admin route hit and moderation action is stored here for traceability.">
+    <TableCard title="Журнал действий" subtitle="Здесь фиксируются все административные действия и обращения к админским маршрутам.">
       <table className="min-w-full text-left text-sm">
         <thead className="bg-slate-50 text-slate">
           <tr>
-            <th className="px-6 py-4">Admin</th>
-            <th className="px-6 py-4">Action</th>
-            <th className="px-6 py-4">Target</th>
-            <th className="px-6 py-4">Created At</th>
+            <th className="px-6 py-4">Администратор</th>
+            <th className="px-6 py-4">Действие</th>
+            <th className="px-6 py-4">Цель</th>
+            <th className="px-6 py-4">Создано</th>
           </tr>
         </thead>
         <tbody>
@@ -26,8 +26,11 @@ export function AuditLogPage() {
             <tr key={row.id} className="border-t border-slate-100">
               <td className="px-6 py-4 font-medium text-ink">{row.admin?.username}</td>
               <td className="px-6 py-4">{row.action}</td>
-              <td className="px-6 py-4 text-slate">{row.targetType}{row.targetId ? `:${row.targetId}` : ""}</td>
-              <td className="px-6 py-4 text-slate">{new Date(row.createdAt).toLocaleString()}</td>
+              <td className="px-6 py-4 text-slate">
+                {row.targetType}
+                {row.targetId ? `:${row.targetId}` : ""}
+              </td>
+              <td className="px-6 py-4 text-slate">{new Date(row.createdAt).toLocaleString("ru-RU")}</td>
             </tr>
           ))}
         </tbody>

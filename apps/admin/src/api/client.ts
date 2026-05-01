@@ -1,4 +1,5 @@
 import { loadAuth, saveAuth, type StoredAuth } from "../lib/storage";
+import { translateAdminError } from "../lib/ui";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "/api";
 
@@ -67,7 +68,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}, retry 
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    throw new Error(payload?.error?.message ?? "Request failed");
+    throw new Error(translateAdminError(payload?.error?.message ?? "Request failed"));
   }
 
   return response.json() as Promise<T>;

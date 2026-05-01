@@ -30,7 +30,7 @@ export function AppRouter() {
         <Route
           path="/call/:callId"
           element={
-            <Suspense fallback={<div className="surface p-6">Loading call screen...</div>}>
+            <Suspense fallback={<div className="surface p-6">Загружаем экран звонка…</div>}>
               <CallPage />
             </Suspense>
           }

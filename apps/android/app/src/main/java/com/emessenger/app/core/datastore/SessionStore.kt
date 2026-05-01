@@ -6,12 +6,15 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.emessenger.app.core.utils.PulseLineThemeMode
 import com.emessenger.app.domain.model.AuthSessionModel
+import com.emessenger.app.domain.model.UserModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
@@ -31,6 +34,7 @@ class SessionStore @Inject constructor(
         val avatar = stringPreferencesKey("avatar")
         val role = stringPreferencesKey("role")
         val status = stringPreferencesKey("status")
+        val themeMode = stringPreferencesKey("theme_mode")
     }
 
     val session: Flow<AuthSessionModel?> = context.dataStore.data
@@ -38,6 +42,18 @@ class SessionStore @Inject constructor(
             if (exception is IOException) emit(emptyPreferences()) else throw exception
         }
         .map { preferences -> preferences.toSession() }
+
+    val themeMode: Flow<PulseLineThemeMode> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
+        }
+        .map { preferences ->
+            when (preferences[Keys.themeMode]) {
+                PulseLineThemeMode.LIGHT.name -> PulseLineThemeMode.LIGHT
+                PulseLineThemeMode.DARK.name -> PulseLineThemeMode.DARK
+                else -> PulseLineThemeMode.SYSTEM
+            }
+        }
 
     suspend fun save(session: AuthSessionModel) {
         context.dataStore.edit { preferences ->
@@ -55,6 +71,15 @@ class SessionStore @Inject constructor(
 
     suspend fun clear() {
         context.dataStore.edit { it.clear() }
+    }
+
+    suspend fun saveThemeMode(mode: PulseLineThemeMode) {
+        context.dataStore.edit { it[Keys.themeMode] = mode.name }
+    }
+
+    suspend fun updateUser(user: UserModel) {
+        val current = session.first() ?: return
+        save(current.copy(user = user))
     }
 
     private fun Preferences.toSession(): AuthSessionModel? {

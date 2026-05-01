@@ -19,8 +19,8 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     vectorDrawables.useSupportLibrary = true
 
-    buildConfigField("String", "API_BASE_URL", "\"https://api.example.com/\"")
-    buildConfigField("String", "SOCKET_URL", "\"https://api.example.com\"")
+    buildConfigField("String", "API_BASE_URL", "\"http://139.28.222.148/\"")
+    buildConfigField("String", "SOCKET_URL", "\"http://139.28.222.148\"")
   }
 
   buildTypes {
@@ -69,11 +69,14 @@ dependencies {
   implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
   implementation("androidx.activity:activity-compose:1.9.3")
   implementation("androidx.navigation:navigation-compose:2.8.4")
+  implementation("androidx.compose.material:material-icons-extended")
+  implementation("androidx.compose.animation:animation")
   implementation("com.google.android.material:material:1.12.0")
   implementation("androidx.compose.material3:material3")
   implementation("androidx.compose.ui:ui")
   implementation("androidx.compose.ui:ui-tooling-preview")
   debugImplementation("androidx.compose.ui:ui-tooling")
+  implementation("io.coil-kt:coil-compose:2.7.0")
 
   implementation("androidx.datastore:datastore-preferences:1.1.1")
   implementation("androidx.room:room-runtime:2.6.1")

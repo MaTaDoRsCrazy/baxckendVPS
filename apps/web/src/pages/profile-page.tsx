@@ -23,18 +23,15 @@ export function ProfilePage() {
 
   return (
     <div className="surface max-w-2xl p-6">
-      <h1 className="text-2xl font-semibold text-ink">Profile</h1>
-      <p className="mt-1 text-sm text-muted">Update your visible identity. Tokens stay in local storage until logout.</p>
+      <h1 className="text-2xl font-semibold text-ink">Профиль</h1>
+      <p className="mt-1 text-sm text-muted">Обновите данные профиля. Токены хранятся локально до выхода из аккаунта.</p>
       <div className="mt-6 grid gap-4">
-        <input className="field" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" />
+        <input className="field" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Имя пользователя" />
         <input className="field" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-        <input className="field" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" />
-        <input className="field" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="Avatar URL" />
-        <button
-          className="primary-btn w-full md:w-auto"
-          onClick={() => mutation.mutate({ username, email, phone, avatarUrl })}
-        >
-          Save changes
+        <input className="field" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Телефон" />
+        <input className="field" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="Ссылка на аватар" />
+        <button className="primary-btn w-full md:w-auto" onClick={() => mutation.mutate({ username, email, phone, avatarUrl })}>
+          Сохранить
         </button>
       </div>
     </div>

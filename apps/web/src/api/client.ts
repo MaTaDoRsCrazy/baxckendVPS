@@ -1,5 +1,6 @@
 import type { ApiEnvelope, ApiError, AuthResponse } from "@emessenger/shared";
 import { loadAuth, saveAuth, type StoredAuth } from "../lib/storage";
+import { translateWebError } from "../lib/ui";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "/api";
 let authCache: StoredAuth | null = loadAuth();
@@ -56,7 +57,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}, retry 
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as ApiError | null;
-    throw new Error(payload?.error.message ?? "Request failed");
+    throw new Error(translateWebError(payload?.error.message ?? "Request failed"));
   }
 
   return response.json() as Promise<T>;

@@ -17,15 +17,15 @@ export function MessagesPage() {
   const messages = (data?.data ?? []) as Array<any>;
 
   return (
-    <TableCard title="Messages" subtitle="Inspect message payloads and soft-delete content when moderation requires it.">
+    <TableCard title="Сообщения" subtitle="Просматривайте сообщения и мягко удаляйте контент при необходимости модерации.">
       <table className="min-w-full text-left text-sm">
         <thead className="bg-slate-50 text-slate">
           <tr>
-            <th className="px-6 py-4">Sender</th>
-            <th className="px-6 py-4">Conversation</th>
-            <th className="px-6 py-4">Type</th>
-            <th className="px-6 py-4">Body</th>
-            <th className="px-6 py-4">Action</th>
+            <th className="px-6 py-4">Отправитель</th>
+            <th className="px-6 py-4">Чат</th>
+            <th className="px-6 py-4">Тип</th>
+            <th className="px-6 py-4">Текст</th>
+            <th className="px-6 py-4">Действие</th>
           </tr>
         </thead>
         <tbody>
@@ -34,13 +34,13 @@ export function MessagesPage() {
               <td className="px-6 py-4 font-medium text-ink">{message.sender?.username}</td>
               <td className="px-6 py-4 text-slate">{message.conversation?.title ?? message.conversation?.id}</td>
               <td className="px-6 py-4">{message.type}</td>
-              <td className="px-6 py-4 text-slate">{message.body ?? (message.isDeleted ? "Deleted" : "—")}</td>
+              <td className="px-6 py-4 text-slate">{message.body ?? (message.isDeleted ? "Удалено" : "—")}</td>
               <td className="px-6 py-4">
                 <button
                   onClick={() => removeMutation.mutate(message.id)}
                   className="rounded-xl bg-ember px-3 py-2 text-xs font-semibold text-white"
                 >
-                  Delete
+                  Удалить
                 </button>
               </td>
             </tr>

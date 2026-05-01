@@ -15,5 +15,5 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "eMessengerAndroid"
+rootProject.name = "PulseLineAndroid"
 include(":app")

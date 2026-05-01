@@ -7,6 +7,7 @@ import com.emessenger.app.domain.repository.AuthRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
@@ -25,6 +26,29 @@ class AuthRepositoryImpl @Inject constructor(
         val session = api.register(com.emessenger.app.data.remote.RegisterRequest(username, email, phone, password)).data
         sessionStore.save(session)
         return session
+    }
+
+    override suspend fun updateProfile(username: String, email: String?, phone: String?): AuthSessionModel? {
+        val updatedUser = api.updateMe(
+            mapOf(
+                "username" to username,
+                "email" to email,
+                "phone" to phone
+            )
+        ).data
+        val current = session.first() ?: return null
+        val updatedSession = current.copy(
+            user = current.user.copy(
+                username = updatedUser.username,
+                email = updatedUser.email,
+                phone = updatedUser.phone,
+                avatarUrl = updatedUser.avatarUrl,
+                role = updatedUser.role,
+                status = updatedUser.status
+            )
+        )
+        sessionStore.save(updatedSession)
+        return updatedSession
     }
 
     override suspend fun logout() {

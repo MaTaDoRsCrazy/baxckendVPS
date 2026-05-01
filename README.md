@@ -1,16 +1,17 @@
-# eMessenger
+# EMESSENGER / PulseLine
 
-Monorepo for eMessenger backend, admin panel, browser messenger, and Android client skeleton. Calls are powered by LiveKit Cloud, while the VPS hosts the backend API, WebSocket messaging, PostgreSQL, admin panel, user web app, token generation, and moderation tooling.
+Полноценный monorepo для self-hosted backend мессенджера с браузерным клиентом, админкой и Android-приложением PulseLine. Звонки работают через LiveKit Cloud: VPS хранит только backend API, Socket.IO, PostgreSQL, админ-панель, web app и генерацию временных LiveKit token.
 
-## Stack
+## Состав проекта
 
-- Backend: Node.js, TypeScript, Fastify, Prisma, PostgreSQL, Socket.IO, JWT, argon2, LiveKit Server SDK
-- Admin: React, Vite, TypeScript, Tailwind CSS, React Router, TanStack Query
-- Web: React, Vite, TypeScript, Tailwind CSS, React Router, TanStack Query, Socket.IO Client, LiveKit Client SDK
-- Android: Kotlin, Jetpack Compose, MVVM, Hilt, Retrofit, DataStore, Room, Socket.IO client, LiveKit Android SDK
-- Infra: Docker Compose, Caddy, PostgreSQL 16 Alpine
+- `apps/backend` — Fastify + Prisma + PostgreSQL + Socket.IO + JWT + LiveKit token API
+- `apps/admin` — русифицированная админка на React/Vite/Tailwind
+- `apps/web` — русифицированный web messenger на React/Vite/Tailwind
+- `apps/android` — PulseLine на Kotlin + Compose + Hilt + Room + DataStore + LiveKit Android SDK
+- `packages/shared` — общие TypeScript-типы
+- `infra/` — Caddy, backup script, PostgreSQL infra
 
-## Project structure
+## Структура
 
 ```text
 emessenger/
@@ -23,6 +24,7 @@ emessenger/
   docs/
     ANDROID_API.md
     DEPLOY.md
+    PULSELINE_ANDROID_UI.md
     WEB_APP.md
   infra/
     caddy/
@@ -36,64 +38,62 @@ emessenger/
   DEPLOY.md
 ```
 
-## Environment
+## Локальный запуск
 
-1. Copy `.env.example` to `.env`
-2. Fill JWT secrets, PostgreSQL password, and LiveKit Cloud credentials
-3. Keep `LIVEKIT_API_SECRET` only on the backend/VPS
+```bash
+cp .env.example .env
+docker compose up -d postgres
+npm install
+npm run db:migrate
+npm run db:seed
+npm run dev
+```
 
-## Local run
-
-1. `cp .env.example .env`
-2. `docker compose up -d postgres`
-3. `npm install`
-4. `npm run db:migrate`
-5. `npm run db:seed`
-6. `npm run dev`
-
-Local development URLs:
+Локальные адреса:
 
 - Backend: `http://localhost:3000`
 - Admin: `http://localhost:5173`
-- Web messenger: `http://localhost:5174`
+- Web app: `http://localhost:5174`
 
-Android app is opened separately from `apps/android` in Android Studio.
+Android открывается отдельно в Android Studio из папки `apps/android`.
 
-## Production run
+## Production / VPS
 
-1. `git clone <repo-url> emessenger`
-2. `cd emessenger`
-3. `cp .env.example .env`
-4. Fill `.env`
-5. `docker compose up -d --build`
-6. `docker compose exec backend npm run db:migrate`
-7. `docker compose exec backend npm run db:seed`
+```bash
+git clone <repo-url> emessenger
+cd emessenger
+cp .env.example .env
+docker compose up -d --build
+docker compose exec backend npm run db:migrate
+docker compose exec backend npm run db:seed
+```
 
-After startup:
+Проверка после запуска:
 
-- API health: `curl http://SERVER_IP/api/health`
-- User web app: `http://SERVER_IP/`
-- Admin panel: `http://SERVER_IP/admin`
-- Socket.IO endpoint: `http://SERVER_IP/socket.io/`
+```bash
+curl http://SERVER_IP/api/health
+```
 
-If domains are configured:
+Маршруты по IP:
 
-- `APP_DOMAIN` -> user web app
-- `ADMIN_DOMAIN` -> admin panel
-- `API_DOMAIN` -> backend API
-- `SERVER_DOMAIN` -> optional same-host path-based routing
+- `http://SERVER_IP/` — web app
+- `http://SERVER_IP/admin` — админка
+- `http://SERVER_IP/api/health` — backend
 
-## Useful commands
+## Android APK
 
-- `npm run db:generate`
-- `npm run build`
-- `docker compose logs -f backend`
-- `sh infra/scripts/backup-postgres.sh`
-- `cd apps/android && ./gradlew assembleDebug`
+```bash
+cd apps/android
+gradlew.bat assembleDebug
+```
 
-## Notes
+APK появится в:
 
-- PostgreSQL is only reachable inside the Docker network and is not exposed publicly.
-- Android and admin clients never receive `LIVEKIT_API_SECRET`.
-- Android must request call join tokens from `POST /api/calls/:callId/token`.
-- Web app also requests call join tokens from `POST /api/calls/:callId/token`.
+- `apps/android/app/build/outputs/apk/debug/app-debug.apk`
+
+## Важные замечания
+
+- `LIVEKIT_API_SECRET` хранится только на backend/VPS.
+- Android и web получают только временный токен через `POST /api/calls/:callId/token`.
+- PostgreSQL не публикуется наружу и работает только внутри Docker network.
+- Для резервных копий используйте `infra/scripts/backup-postgres.sh`.

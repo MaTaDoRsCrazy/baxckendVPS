@@ -2,15 +2,17 @@ export function SettingsPage() {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <section className="surface p-6">
-        <h1 className="text-2xl font-semibold text-ink">Settings</h1>
-        <p className="mt-2 text-sm text-muted">This MVP stores tokens locally, uses Socket.IO for realtime events, and fetches LiveKit tokens from the backend only.</p>
+        <h1 className="text-2xl font-semibold text-ink">Настройки</h1>
+        <p className="mt-2 text-sm text-muted">
+          В этой версии токены хранятся локально, realtime работает через Socket.IO, а токены LiveKit запрашиваются только с backend.
+        </p>
       </section>
       <section className="surface p-6">
-        <h2 className="text-lg font-semibold text-ink">Security notes</h2>
+        <h2 className="text-lg font-semibold text-ink">Безопасность</h2>
         <ul className="mt-3 space-y-2 text-sm text-muted">
-          <li>Access token is sent as Bearer auth to REST requests.</li>
-          <li>Refresh token is used only with `/api/auth/refresh`.</li>
-          <li>LiveKit credentials never live in the browser bundle.</li>
+          <li>Access token передаётся как Bearer-токен в REST-запросах.</li>
+          <li>Refresh token используется только в `/api/auth/refresh`.</li>
+          <li>Секреты LiveKit никогда не попадают в браузерный bundle.</li>
         </ul>
       </section>
     </div>

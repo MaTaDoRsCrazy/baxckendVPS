@@ -1,6 +1,6 @@
-# Web App
+# Web App PulseLine
 
-## Stack
+## Стек
 
 - React
 - Vite
@@ -11,7 +11,7 @@
 - Socket.IO Client
 - LiveKit Client SDK
 
-## Routes
+## Маршруты
 
 - `/login`
 - `/register`
@@ -21,16 +21,16 @@
 - `/settings`
 - `/call/:callId`
 
-## Runtime config
+## Конфигурация
 
 - `VITE_API_URL=/api`
 - `VITE_SOCKET_URL=/`
 
-LiveKit URL is not stored in frontend env. The web app requests it from:
+LiveKit URL не хранится в env фронтенда. Web app получает его только из backend:
 
 - `POST /api/calls/:callId/token`
 
-Response:
+Ответ:
 
 ```json
 {
@@ -40,21 +40,22 @@ Response:
 }
 ```
 
-## Features in this MVP
+## Что работает
 
-- register/login/logout
-- local auth storage for access/refresh token
-- chat list and chat view
-- private and group chat creation
-- message send
-- realtime message updates via Socket.IO
+- вход / регистрация / выход
+- локальное хранение access/refresh token
+- список чатов и экран переписки
+- создание личных и групповых чатов
+- отправка сообщений
+- realtime через Socket.IO
 - typing indicator
-- read status sync
-- online/offline presence
-- incoming call banner
-- audio/video call entry with LiveKit temporary token
+- read status
+- online / offline статус
+- баннер входящего звонка
+- вход в аудио- и видеозвонок через временный LiveKit token
 
-## Security
+## Безопасность
 
-- `LIVEKIT_API_SECRET` never appears in web source or env
-- browser uses only the temporary token returned by backend
+- `LIVEKIT_API_SECRET` не попадает в frontend bundle
+- браузер использует только временный token от backend
+- PostgreSQL недоступен браузеру напрямую

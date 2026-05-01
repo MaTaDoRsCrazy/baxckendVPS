@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { blockUser, getUsers, unblockUser } from "../api/admin";
 import { TableCard } from "../components/table-card";
+import { formatRoleRu, formatStatusRu } from "../lib/ui";
 
 export function UsersPage() {
   const queryClient = useQueryClient();
@@ -22,15 +23,15 @@ export function UsersPage() {
   const users = (data?.data ?? []) as Array<any>;
 
   return (
-    <TableCard title="Users" subtitle="Manage account statuses and review who can access the system.">
+    <TableCard title="Пользователи" subtitle="Управляйте статусами аккаунтов и контролируйте доступ к системе.">
       <table className="min-w-full text-left text-sm">
         <thead className="bg-slate-50 text-slate">
           <tr>
-            <th className="px-6 py-4">Username</th>
+            <th className="px-6 py-4">Имя пользователя</th>
             <th className="px-6 py-4">Email</th>
-            <th className="px-6 py-4">Role</th>
-            <th className="px-6 py-4">Status</th>
-            <th className="px-6 py-4">Action</th>
+            <th className="px-6 py-4">Роль</th>
+            <th className="px-6 py-4">Статус</th>
+            <th className="px-6 py-4">Действие</th>
           </tr>
         </thead>
         <tbody>
@@ -38,9 +39,9 @@ export function UsersPage() {
             <tr key={user.id} className="border-t border-slate-100">
               <td className="px-6 py-4 font-medium text-ink">{user.username}</td>
               <td className="px-6 py-4 text-slate">{user.email ?? "—"}</td>
-              <td className="px-6 py-4">{user.role}</td>
+              <td className="px-6 py-4">{formatRoleRu(user.role)}</td>
               <td className="px-6 py-4">
-                <span className={`badge ${user.status === "ACTIVE" ? "badge-ok" : "badge-danger"}`}>{user.status}</span>
+                <span className={`badge ${user.status === "ACTIVE" ? "badge-ok" : "badge-danger"}`}>{formatStatusRu(user.status)}</span>
               </td>
               <td className="px-6 py-4">
                 {user.status === "BLOCKED" ? (
@@ -48,14 +49,14 @@ export function UsersPage() {
                     onClick={() => unblockMutation.mutate(user.id)}
                     className="rounded-xl bg-moss px-3 py-2 text-xs font-semibold text-white"
                   >
-                    Unblock
+                    Разблокировать
                   </button>
                 ) : (
                   <button
                     onClick={() => blockMutation.mutate(user.id)}
                     className="rounded-xl bg-ember px-3 py-2 text-xs font-semibold text-white"
                   >
-                    Block
+                    Заблокировать
                   </button>
                 )}
               </td>

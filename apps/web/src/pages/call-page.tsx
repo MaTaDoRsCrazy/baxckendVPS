@@ -2,6 +2,7 @@ import type { RemoteTrackPublication, Room } from "livekit-client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { endCall, getCallHistory, getCallToken } from "../api/messenger";
+import { formatCallTypeRu } from "../lib/ui";
 
 function attachPublication(publication: RemoteTrackPublication, container: HTMLDivElement | null) {
   if (!container || !publication.track) return;
@@ -18,7 +19,7 @@ export function CallPage() {
   const remoteContainerRef = useRef<HTMLDivElement | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
   const [mode, setMode] = useState<"AUDIO" | "VIDEO">("AUDIO");
-  const [status, setStatus] = useState("Preparing room...");
+  const [status, setStatus] = useState("Подготавливаем комнату...");
 
   const roomFactory = useMemo(async () => {
     const livekit = await import("livekit-client");
@@ -42,7 +43,7 @@ export function CallPage() {
       const { room: nextRoom, createLocalTracks } = await roomFactory;
       currentRoom = nextRoom;
       setRoom(nextRoom);
-      setStatus("Connecting to LiveKit...");
+      setStatus("Подключаемся к LiveKit...");
       await nextRoom.connect(token.url, token.token);
 
       const localTracks = await createLocalTracks({
@@ -66,22 +67,22 @@ export function CallPage() {
         element.className = "h-full w-full rounded-3xl object-cover";
         remoteContainerRef.current.innerHTML = "";
         remoteContainerRef.current.appendChild(element);
-        setStatus(`Connected with ${participant.identity}`);
+        setStatus(`Подключено: ${participant.identity}`);
       });
 
       nextRoom.on("participantConnected", (participant) => {
-        setStatus(`Participant joined: ${participant.identity}`);
+        setStatus(`Подключился пользователь: ${participant.identity}`);
         participant.trackPublications.forEach((publication) => {
           attachPublication(publication as RemoteTrackPublication, remoteContainerRef.current);
         });
       });
 
       nextRoom.on("participantDisconnected", () => {
-        setStatus("Participant left");
+        setStatus("Собеседник вышел");
       });
 
       if (mounted) {
-        setStatus("Connected");
+        setStatus("Соединение установлено");
       }
     })();
 
@@ -104,36 +105,36 @@ export function CallPage() {
       <section className="surface overflow-hidden p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-muted">LiveKit room</p>
-            <h1 className="mt-2 text-2xl font-semibold text-ink">{mode} call</h1>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted">Комната LiveKit</p>
+            <h1 className="mt-2 text-2xl font-semibold text-ink">{formatCallTypeRu(mode)}</h1>
             <p className="mt-1 text-sm text-muted">{status}</p>
           </div>
           <button className="rounded-2xl bg-coral px-4 py-3 text-sm font-semibold text-white" onClick={() => void leaveCall()}>
-            End call
+            Завершить
           </button>
         </div>
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           <div className="rounded-3xl bg-ink/90 p-3">
-            <p className="mb-2 text-xs uppercase tracking-[0.15em] text-white/60">Remote</p>
+            <p className="mb-2 text-xs uppercase tracking-[0.15em] text-white/60">Собеседник</p>
             <div ref={remoteContainerRef} className="flex h-[360px] items-center justify-center rounded-3xl bg-black/30 text-white/60">
-              Waiting for participant...
+              Ожидаем подключения...
             </div>
           </div>
           <div className="rounded-3xl bg-white p-3">
-            <p className="mb-2 text-xs uppercase tracking-[0.15em] text-muted">You</p>
+            <p className="mb-2 text-xs uppercase tracking-[0.15em] text-muted">Вы</p>
             <div ref={localContainerRef} className="flex h-[360px] items-center justify-center rounded-3xl bg-canvas text-muted">
-              Local preview
+              Локальное превью
             </div>
           </div>
         </div>
       </section>
       <aside className="space-y-4">
         <section className="surface p-5">
-          <h2 className="text-lg font-semibold text-ink">Call notes</h2>
+          <h2 className="text-lg font-semibold text-ink">О звонке</h2>
           <ul className="mt-3 space-y-2 text-sm text-muted">
-            <li>Token and URL come from `POST /api/calls/:callId/token`.</li>
-            <li>`LIVEKIT_API_SECRET` never reaches the browser.</li>
-            <li>Audio starts immediately; video publishes for video calls.</li>
+            <li>URL и временный токен приходят из `POST /api/calls/:callId/token`.</li>
+            <li>`LIVEKIT_API_SECRET` никогда не попадает в браузер.</li>
+            <li>Аудио запускается сразу, видео публикуется только для видеозвонков.</li>
           </ul>
         </section>
       </aside>

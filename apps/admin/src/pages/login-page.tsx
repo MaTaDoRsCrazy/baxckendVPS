@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginAdmin } from "../api/admin";
 import { setApiAuth } from "../api/client";
+import { translateAdminError } from "../lib/ui";
 import { useAuth } from "../providers/auth-provider";
 
 export function LoginPage() {
@@ -21,7 +22,7 @@ export function LoginPage() {
       const response = await loginAdmin(identifier, password);
       const role = response.data.user.role;
       if (role !== "ADMIN" && role !== "SUPER_ADMIN") {
-        throw new Error("Admin access is allowed only for ADMIN and SUPER_ADMIN");
+        throw new Error("Доступ разрешён только администраторам");
       }
 
       const auth = {
@@ -34,7 +35,7 @@ export function LoginPage() {
       setAuth(auth);
       navigate("/dashboard");
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Login failed");
+      setError(submitError instanceof Error ? translateAdminError(submitError.message) : "Не удалось выполнить вход");
     } finally {
       setIsSubmitting(false);
     }
@@ -43,12 +44,12 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-8">
       <div className="panel w-full max-w-md p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate">Secure Access</p>
-        <h1 className="mt-4 text-3xl font-bold text-ink">Admin Login</h1>
-        <p className="mt-2 text-sm text-slate">Use an ADMIN or SUPER_ADMIN account created by the backend seed script.</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate">Безопасный доступ</p>
+        <h1 className="mt-4 text-3xl font-bold text-ink">Вход в админку</h1>
+        <p className="mt-2 text-sm text-slate">Используйте аккаунт ADMIN или SUPER_ADMIN, созданный seed-скриптом backend.</p>
         <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
           <label className="block">
-            <span className="mb-2 block text-sm font-medium text-ink">Email or username</span>
+            <span className="mb-2 block text-sm font-medium text-ink">Email или имя пользователя</span>
             <input
               value={identifier}
               onChange={(event) => setIdentifier(event.target.value)}
@@ -57,7 +58,7 @@ export function LoginPage() {
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-sm font-medium text-ink">Password</span>
+            <span className="mb-2 block text-sm font-medium text-ink">Пароль</span>
             <input
               type="password"
               value={password}
@@ -72,7 +73,7 @@ export function LoginPage() {
             type="submit"
             className="w-full rounded-2xl bg-ink px-4 py-3 text-sm font-semibold text-white transition hover:bg-moss disabled:opacity-70"
           >
-            {isSubmitting ? "Signing in..." : "Sign in"}
+            {isSubmitting ? "Входим..." : "Войти"}
           </button>
         </form>
       </div>

@@ -5,12 +5,13 @@ import { getChat, getChats, getChatMessages, markMessageRead, startCall } from "
 import { ChatList } from "../components/chat-list";
 import { CreateChatPanel } from "../components/create-chat-panel";
 import { MessageComposer } from "../components/message-composer";
+import { formatTimeRu } from "../lib/ui";
 import { useAuth } from "../providers/auth-provider";
 import { useRealtime } from "../providers/realtime-provider";
 
 function lastReadLabel(message: Message, currentUserId: string) {
   const readCount = (message.statuses ?? []).filter((status) => status.userId !== currentUserId && status.status === "READ").length;
-  return readCount > 0 ? `${readCount} read` : "Sent";
+  return readCount > 0 ? `Прочитано: ${readCount}` : "Отправлено";
 }
 
 export function ChatsPage() {
@@ -65,14 +66,14 @@ export function ChatsPage() {
   const title =
     conversation?.title ??
     conversation?.members?.filter((member) => member.userId !== auth?.user.id).map((member) => member.user.username).join(", ") ??
-    "Select a chat";
+    "Выберите чат";
 
   return (
     <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
       <aside className={`space-y-4 ${chatId ? "hidden lg:block" : "block"}`}>
         <div className="surface p-4">
-          <h2 className="text-xl font-semibold text-ink">Your chats</h2>
-          <p className="mt-1 text-sm text-muted">Realtime messages, LiveKit audio/video calls, and mobile-friendly layout.</p>
+          <h2 className="text-xl font-semibold text-ink">Чаты</h2>
+          <p className="mt-1 text-sm text-muted">Сообщения в реальном времени, звонки через LiveKit и удобный интерфейс для телефона и ПК.</p>
         </div>
         <CreateChatPanel />
         <div className="surface p-3">
@@ -88,14 +89,16 @@ export function ChatsPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-3">
-                      <Link to="/chats" className="text-sm text-ocean lg:hidden">Back</Link>
+                      <Link to="/chats" className="text-sm text-ocean lg:hidden">
+                        Назад
+                      </Link>
                       <h2 className="text-xl font-semibold text-ink">{title}</h2>
                     </div>
                     <p className="mt-1 text-sm text-muted">
-                      {conversation.members?.some((member) => onlineUsers.has(member.user.id)) ? "Someone is online" : "Members offline"}
+                      {conversation.members?.some((member) => onlineUsers.has(member.user.id)) ? "В сети" : "Не в сети"}
                     </p>
                     {typingUsers.length > 0 ? (
-                      <p className="mt-1 text-xs uppercase tracking-[0.15em] text-ocean">Typing now...</p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.15em] text-ocean">Печатает...</p>
                     ) : null}
                   </div>
                   <div className="flex gap-2">
@@ -103,13 +106,13 @@ export function ChatsPage() {
                       className="secondary-btn !px-3 !py-2"
                       onClick={() => callMutation.mutate({ conversationId: conversation.id, type: "AUDIO" })}
                     >
-                      Audio
+                      Аудио
                     </button>
                     <button
                       className="secondary-btn !px-3 !py-2"
                       onClick={() => callMutation.mutate({ conversationId: conversation.id, type: "VIDEO" })}
                     >
-                      Video
+                      Видео
                     </button>
                   </div>
                 </div>
@@ -120,23 +123,28 @@ export function ChatsPage() {
                   return (
                     <div key={message.id} className={`flex ${own ? "justify-end" : "justify-start"}`}>
                       <div className={`max-w-[80%] rounded-3xl px-4 py-3 ${own ? "bg-ocean text-white" : "bg-white text-ink"}`}>
-                        <p className="text-xs opacity-70">{message.sender?.username ?? "User"}</p>
-                        <p className="mt-1 whitespace-pre-wrap text-sm">{message.isDeleted ? "Message deleted" : message.body}</p>
+                        <p className="text-xs opacity-70">{message.sender?.username ?? "Пользователь"}</p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm">{message.isDeleted ? "Сообщение удалено" : message.body}</p>
                         <div className="mt-2 text-[11px] opacity-70">
-                          {new Date(message.createdAt).toLocaleTimeString()} {own ? `• ${lastReadLabel(message, auth?.user.id ?? "")}` : ""}
+                          {formatTimeRu(message.createdAt)} {own ? `• ${lastReadLabel(message, auth?.user.id ?? "")}` : ""}
                         </div>
                       </div>
                     </div>
                   );
                 })}
+                {messages.length === 0 ? (
+                  <div className="flex min-h-48 items-center justify-center text-sm text-muted">
+                    Сообщений пока нет. Начните общение первым.
+                  </div>
+                ) : null}
               </div>
               <MessageComposer conversationId={conversation.id} />
             </>
           ) : (
             <div className="flex flex-1 items-center justify-center px-6 py-10 text-center">
               <div>
-                <h2 className="text-2xl font-semibold text-ink">Choose a conversation</h2>
-                <p className="mt-2 text-sm text-muted">On mobile you’ll see the selected chat full-screen. On desktop the chat opens to the right.</p>
+                <h2 className="text-2xl font-semibold text-ink">Выберите чат</h2>
+                <p className="mt-2 text-sm text-muted">На мобильном откроется отдельный экран чата, а на десктопе чат появится справа.</p>
               </div>
             </div>
           )}

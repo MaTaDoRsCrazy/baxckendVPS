@@ -31,11 +31,11 @@ export function CreateChatPanel() {
 
   return (
     <div className="surface p-4">
-      <h3 className="text-lg font-semibold text-ink">Create chat</h3>
+      <h3 className="text-lg font-semibold text-ink">Создать чат</h3>
       <div className="mt-4 flex gap-2">
-        <input value={query} onChange={(event) => setQuery(event.target.value)} className="field" placeholder="Search users" />
+        <input value={query} onChange={(event) => setQuery(event.target.value)} className="field" placeholder="Поиск пользователей" />
         <button className="secondary-btn" onClick={() => void runSearch()}>
-          Find
+          Поиск
         </button>
       </div>
       <div className="mt-3 max-h-52 space-y-2 overflow-auto">
@@ -43,14 +43,14 @@ export function CreateChatPanel() {
           <div key={user.id} className="flex items-center justify-between rounded-2xl border border-stroke px-3 py-2">
             <div>
               <p className="font-medium text-ink">{user.username}</p>
-              <p className="text-xs text-muted">{user.email ?? user.phone ?? "No public contact"}</p>
+              <p className="text-xs text-muted">{user.email ?? user.phone ?? "Нет публичных контактов"}</p>
             </div>
             <div className="flex gap-2">
               <button className="secondary-btn !px-3 !py-2" onClick={() => privateMutation.mutate(user.id)}>
-                Private
+                Личный
               </button>
               <button className="secondary-btn !px-3 !py-2" onClick={() => toggleUser(user.id)}>
-                {selectedIds.includes(user.id) ? "Added" : "Group"}
+                {selectedIds.includes(user.id) ? "Добавлен" : "В группу"}
               </button>
             </div>
           </div>
@@ -61,14 +61,14 @@ export function CreateChatPanel() {
           value={groupTitle}
           onChange={(event) => setGroupTitle(event.target.value)}
           className="field"
-          placeholder="Group title"
+          placeholder="Название группы"
         />
         <button
           className="primary-btn mt-3 w-full"
           disabled={!groupTitle.trim() || selectedIds.length === 0}
           onClick={() => groupMutation.mutate({ title: groupTitle.trim(), memberIds: selectedIds })}
         >
-          Create group
+          Создать группу
         </button>
       </div>
     </div>

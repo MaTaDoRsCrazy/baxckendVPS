@@ -2,15 +2,15 @@
 
 ## 1. Auth flow
 
-1. Android sends `POST /api/auth/register` or `POST /api/auth/login`
-2. Backend returns `accessToken`, `refreshToken`, and `user`
-3. Android stores:
+1. Android отправляет `POST /api/auth/register` или `POST /api/auth/login`.
+2. Backend возвращает `accessToken`, `refreshToken` и `user`.
+3. Android сохраняет:
    - `accessToken`
    - `refreshToken`
-   - current user profile
-4. Android sends `Authorization: Bearer <accessToken>` on REST and Socket.IO auth
-5. When access token expires, Android calls `POST /api/auth/refresh`
-6. On logout, Android calls `POST /api/auth/logout`
+   - профиль текущего пользователя
+4. Во все REST-запросы и Socket.IO auth добавляется `Authorization: Bearer <accessToken>`.
+5. При истечении access token приложение вызывает `POST /api/auth/refresh`.
+6. При выходе выполняется `POST /api/auth/logout`.
 
 ## 2. REST endpoints
 
@@ -52,13 +52,13 @@
 - `POST /api/calls/:callId/token`
 - `GET /api/calls/history`
 
-## 3. WebSocket connection
+## 3. Socket.IO
 
-Socket.IO endpoint:
+Endpoint:
 
 - `ws(s)://HOST/socket.io/`
 
-Android should connect with JWT access token:
+Подключение с JWT:
 
 ```json
 {
@@ -67,8 +67,6 @@ Android should connect with JWT access token:
   }
 }
 ```
-
-## 4. WebSocket events
 
 ### Client -> Server
 
@@ -96,15 +94,15 @@ Android should connect with JWT access token:
 - `call:rejected`
 - `call:ended`
 
-## 5. LiveKit call flow
+## 4. LiveKit call flow
 
-1. Android starts or receives a call via REST or Socket.IO
-2. Backend creates a `Call` row and `CallParticipant` rows
-3. Android calls `POST /api/calls/:callId/token`
-4. Backend verifies:
-   - access token is valid
-   - user belongs to the call
-5. Backend returns:
+1. Android стартует или получает звонок через REST / Socket.IO.
+2. Backend создаёт `Call` и `CallParticipant`.
+3. Android вызывает `POST /api/calls/:callId/token`.
+4. Backend проверяет:
+   - access token валиден
+   - пользователь участвует в звонке
+5. Backend возвращает:
 
 ```json
 {
@@ -114,42 +112,22 @@ Android should connect with JWT access token:
 }
 ```
 
-6. Android joins LiveKit Cloud with returned `url` and `token`
-7. Android never stores or receives `LIVEKIT_API_SECRET`
+6. Android подключается к LiveKit Cloud только по возвращённым `url` и `token`.
 
-## 6. Data Android should store
+Никогда не хранить на Android:
+
+- `LIVEKIT_API_SECRET`
+- прямые PostgreSQL credentials
+
+## 5. Что хранит Android
 
 - `accessToken`
 - `refreshToken`
-- current user profile
-- chat list cache
-- message cache per chat
-- last known call metadata if resuming UI
+- текущего пользователя
+- локальный кэш сообщений
+- тему приложения
+- метаданные активного звонка при необходимости
 
-Do not store:
+## 6. Важное ограничение
 
-- `LIVEKIT_API_SECRET`
-- direct PostgreSQL credentials
-
-## 7. Call token request example
-
-Request:
-
-```http
-POST /api/calls/{callId}/token
-Authorization: Bearer ACCESS_TOKEN
-```
-
-Response:
-
-```json
-{
-  "url": "wss://your-project.livekit.cloud",
-  "token": "eyJhbGciOi...",
-  "roomName": "conv_123_call_456"
-}
-```
-
-## 8. Backend ownership
-
-Android must never connect directly to PostgreSQL. All user, chat, message, session, and call state flows through the backend API and Socket.IO gateway.
+Android никогда не подключается напрямую к PostgreSQL. Все пользователи, чаты, сообщения, сессии и звонки идут только через backend API и Socket.IO gateway.
