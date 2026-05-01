@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  DELETED
+}
+
+enum ConversationType {
+  PRIVATE
+  GROUP
+}
+
+enum ConversationMemberRole {
+  MEMBER
+  ADMIN
+  OWNER
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  VOICE
+  SYSTEM
+}
+
+enum MessageDeliveryStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
+enum CallType {
+  AUDIO
+  VIDEO
+}
+
+enum CallStatus {
+  RINGING
+  ACCEPTED
+  REJECTED
+  MISSED
+  ENDED
+}
+
+enum CallParticipantStatus {
+  INVITED
+  JOINED
+  LEFT
+  REJECTED
+  MISSED
+}
+
+model User {
+  id                    String               @id @default(cuid())
+  phone                 String?
+  email                 String?              @unique
+  username              String               @unique
+  passwordHash          String
+  avatarUrl             String?
+  role                  UserRole             @default(USER)
+  status                UserStatus           @default(ACTIVE)
+  lastSeenAt            DateTime?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  sessions              Session[]
+  createdConversations  Conversation[]       @relation("ConversationCreator")
+  memberships           ConversationMember[]
+  sentMessages          Message[]            @relation("MessageSender")
+  messageStatuses       MessageStatus[]
+  createdCalls          Call[]               @relation("CallCreator")
+  callParticipants      CallParticipant[]
+  adminActions          AdminAction[]
+}
+
+model Session {
+  id               String   @id @default(cuid())
+  userId           String
+  refreshTokenHash String
+  userAgent        String?
+  ipAddress        String?
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Conversation {
+  id            String               @id @default(cuid())
+  type          ConversationType
+  title         String?
+  avatarUrl     String?
+  createdById   String
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  createdBy     User                 @relation("ConversationCreator", fields: [createdById], references: [id])
+  members       ConversationMember[]
+  messages      Message[]
+  calls         Call[]
+}
+
+model ConversationMember {
+  id             String                 @id @default(cuid())
+  conversationId String
+  userId         String
+  role           ConversationMemberRole @default(MEMBER)
+  joinedAt       DateTime               @default(now())
+  leftAt         DateTime?
+  conversation   Conversation           @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id               String          @id @default(cuid())
+  conversationId   String
+  senderId         String
+  type             MessageType     @default(TEXT)
+  body             String?
+  attachmentUrl    String?
+  replyToMessageId String?
+  isEdited         Boolean         @default(false)
+  isDeleted        Boolean         @default(false)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  conversation     Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender           User            @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  replyToMessage   Message?        @relation("MessageReplies", fields: [replyToMessageId], references: [id])
+  replies          Message[]       @relation("MessageReplies")
+  statuses         MessageStatus[]
+
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([senderId])
+}
+
+model MessageStatus {
+  id        String                @id @default(cuid())
+  messageId String
+  userId    String
+  status    MessageDeliveryStatus @default(SENT)
+  createdAt DateTime              @default(now())
+  message   Message               @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+}
+
+model Call {
+  id               String            @id @default(cuid())
+  conversationId   String
+  createdById      String
+  type             CallType
+  status           CallStatus        @default(RINGING)
+  livekitRoomName  String
+  startedAt        DateTime?
+  endedAt          DateTime?
+  createdAt        DateTime          @default(now())
+  conversation     Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdBy        User              @relation("CallCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  participants     CallParticipant[]
+
+  @@index([conversationId, createdAt(sort: Desc)])
+}
+
+model CallParticipant {
+  id        String                @id @default(cuid())
+  callId     String
+  userId     String
+  status     CallParticipantStatus @default(INVITED)
+  joinedAt   DateTime?
+  leftAt     DateTime?
+  call       Call                  @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user       User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, userId])
+  @@index([userId])
+}
+
+model AdminAction {
+  id         String   @id @default(cuid())
+  adminId     String
+  action      String
+  targetType  String
+  targetId    String?
+  metadata    Json?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+  admin       User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, createdAt(sort: Desc)])
+}

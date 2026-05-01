@@ -1,0 +1,46 @@
+{
+  email {$ACME_EMAIL:admin@example.com}
+}
+
+(backend_routes) {
+  @backend path /api/* /socket.io/*
+  handle @backend {
+    reverse_proxy backend:3000
+  }
+}
+
+(admin_routes) {
+  handle_path /admin/* {
+    reverse_proxy admin:80
+  }
+}
+
+(web_routes) {
+  handle {
+    reverse_proxy web:80
+  }
+}
+
+:80 {
+  import backend_routes
+  import admin_routes
+  import web_routes
+}
+
+{$SERVER_DOMAIN:localhost} {
+  import backend_routes
+  import admin_routes
+  import web_routes
+}
+
+{$APP_DOMAIN:app.localhost} {
+  reverse_proxy web:80
+}
+
+{$ADMIN_DOMAIN:admin.localhost} {
+  reverse_proxy admin:80
+}
+
+{$API_DOMAIN:api.localhost} {
+  reverse_proxy backend:3000
+}

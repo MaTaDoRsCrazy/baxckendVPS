@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #101828;
+  background:
+    radial-gradient(circle at top left, rgba(216, 162, 94, 0.18), transparent 28%),
+    linear-gradient(180deg, #fffdf8 0%, #f8f4ea 100%);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.panel {
+  @apply rounded-3xl border border-white/70 bg-white/85 shadow-panel backdrop-blur;
+}
+
+.badge {
+  @apply inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em];
+}
+
+.badge-ok {
+  @apply bg-emerald-100 text-emerald-700;
+}
+
+.badge-warn {
+  @apply bg-amber-100 text-amber-700;
+}
+
+.badge-danger {
+  @apply bg-rose-100 text-rose-700;
+}

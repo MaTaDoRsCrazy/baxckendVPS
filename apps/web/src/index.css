@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #17212b;
+  background:
+    radial-gradient(circle at top right, rgba(29, 111, 143, 0.12), transparent 28%),
+    linear-gradient(180deg, #fbfcf7 0%, #f2f5ef 100%);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body,
+#root {
+  min-height: 100vh;
+}
+
+.surface {
+  @apply rounded-3xl border border-stroke/80 bg-panel shadow-soft;
+}
+
+.field {
+  @apply w-full rounded-2xl border border-stroke bg-white px-4 py-3 text-sm outline-none transition focus:border-ocean;
+}
+
+.primary-btn {
+  @apply rounded-2xl bg-ink px-4 py-3 text-sm font-semibold text-white transition hover:bg-ocean disabled:opacity-70;
+}
+
+.secondary-btn {
+  @apply rounded-2xl border border-stroke bg-white px-4 py-3 text-sm font-semibold text-ink transition hover:bg-canvas;
+}

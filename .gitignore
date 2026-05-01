@@ -1,0 +1,14 @@
+node_modules
+dist
+.vite
+.env
+.env.local
+coverage
+backups/*.sql
+apps/backend/generated
+apps/backend/prisma/dev.db
+*.log
+.gradle
+build
+local.properties
+*.iml
