@@ -29,7 +29,9 @@ interface ChatRepository {
     suspend fun getChats(): List<ConversationModel>
     suspend fun getChat(chatId: String): ConversationModel
     fun observeMessages(chatId: String): Flow<List<MessageModel>>
-    suspend fun refreshMessages(chatId: String)
+    suspend fun refreshMessages(chatId: String, since: String? = null)
+    suspend fun latestMessageCreatedAt(chatId: String): String?
+    suspend fun upsertIncomingMessage(message: MessageModel)
     suspend fun sendMessage(chatId: String, body: String)
     suspend fun sendAttachment(chatId: String, uri: Uri, body: String? = null): MessageModel
     suspend fun sendVoice(chatId: String, uri: Uri, body: String? = null): MessageModel

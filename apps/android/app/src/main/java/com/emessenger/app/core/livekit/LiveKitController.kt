@@ -23,7 +23,7 @@ class LiveKitController @Inject constructor(
                 options = ConnectOptions(audio = audio, video = video)
             )
         }
-        return room!!
+        return room ?: error("Не удалось инициализировать LiveKit")
     }
 
     fun disconnect() {

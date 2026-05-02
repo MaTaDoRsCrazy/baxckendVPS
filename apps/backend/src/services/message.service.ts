@@ -5,6 +5,7 @@ import { messageSelect, serializeMessage } from "../lib/serializers.js";
 
 interface CreateMessageInput {
   conversationId: string;
+  clientTempId?: string | null;
   type: "TEXT" | "IMAGE" | "FILE" | "VOICE" | "SYSTEM";
   body?: string | null;
   attachmentUrl?: string | null;
@@ -57,6 +58,7 @@ export function createMessageService(prisma: PrismaClient) {
       const message = await prisma.message.create({
         data: {
           conversationId: input.conversationId,
+          clientTempId: input.clientTempId ?? null,
           senderId: userId,
           type: input.type,
           body: input.body ?? null,
@@ -77,9 +79,15 @@ export function createMessageService(prisma: PrismaClient) {
         select: messageSelect as any
       });
 
-      await prisma.conversation.update({
+      void prisma.conversation.update({
         where: { id: input.conversationId },
         data: { updatedAt: new Date() }
+      }).catch((error) => {
+        console.error("message:create:conversation_touch_error", {
+          conversationId: input.conversationId,
+          messageId: message.id,
+          error: error instanceof Error ? error.message : String(error)
+        });
       });
 
       return serializeMessage(message);

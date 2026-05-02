@@ -1,6 +1,12 @@
 import type { ApiEnvelope, AuthResponse, Call, Conversation, Message, UploadResult, User } from "@emessenger/shared";
 import { apiRequest } from "./client";
 
+export interface MessageListPage {
+  items: Message[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 export function login(identifier: string, password: string) {
   return apiRequest<ApiEnvelope<AuthResponse>>("/auth/login", {
     method: "POST",
@@ -40,8 +46,13 @@ export function getChat(chatId: string) {
   return apiRequest<ApiEnvelope<Conversation>>(`/chats/${chatId}`);
 }
 
-export function getChatMessages(chatId: string) {
-  return apiRequest<ApiEnvelope<Message[]>>(`/chats/${chatId}/messages`);
+export function getChatMessages(chatId: string, input?: { limit?: number; cursor?: string; since?: string }) {
+  const params = new URLSearchParams();
+  if (input?.limit) params.set("limit", String(input.limit));
+  if (input?.cursor) params.set("cursor", input.cursor);
+  if (input?.since) params.set("since", input.since);
+  const suffix = params.size > 0 ? `?${params.toString()}` : "";
+  return apiRequest<ApiEnvelope<MessageListPage>>(`/chats/${chatId}/messages${suffix}`);
 }
 
 export function searchUsers(q: string) {
@@ -91,6 +102,7 @@ export function createGroupChat(title: string, memberIds: string[]) {
 
 export function createMessage(input: {
   conversationId: string;
+  clientTempId?: string | null;
   type?: string;
   body?: string | null;
   attachmentUrl?: string | null;

@@ -3,6 +3,25 @@ import { ConversationType } from "@prisma/client";
 import { badRequest, forbidden, notFound } from "../lib/errors.js";
 import { conversationMemberSelect, messageSelect, serializeConversation, serializeMessage } from "../lib/serializers.js";
 
+function encodeCursor(createdAt: Date, id: string) {
+  return Buffer.from(`${createdAt.toISOString()}|${id}`, "utf8").toString("base64url");
+}
+
+function decodeCursor(cursor: string) {
+  const decoded = Buffer.from(cursor, "base64url").toString("utf8");
+  const [createdAtRaw, id] = decoded.split("|");
+  if (!createdAtRaw || !id) {
+    throw badRequest("Invalid cursor");
+  }
+
+  const createdAt = new Date(createdAtRaw);
+  if (Number.isNaN(createdAt.getTime())) {
+    throw badRequest("Invalid cursor");
+  }
+
+  return { createdAt, id };
+}
+
 async function assertConversationMember(prisma: PrismaClient, conversationId: string, userId: string) {
   const membership = await prisma.conversationMember.findUnique({
     where: {
@@ -170,17 +189,51 @@ export function createChatService(prisma: PrismaClient) {
       });
     },
 
-    async getMessages(userId: string, conversationId: string, limit = 50) {
+    async getMessages(
+      userId: string,
+      conversationId: string,
+      options: { limit?: number; cursor?: string | null; since?: string | null } = {}
+    ) {
       await assertConversationMember(prisma, conversationId, userId);
 
+      const take = Math.min(Math.max(options.limit ?? 50, 1), 100);
+      const cursor = options.cursor ? decodeCursor(options.cursor) : null;
+      const sinceDate = options.since ? new Date(options.since) : null;
+      const validSince = sinceDate && !Number.isNaN(sinceDate.getTime()) ? sinceDate : null;
+
       const messages = await prisma.message.findMany({
-        where: { conversationId },
-        orderBy: { createdAt: "desc" },
-        take: limit,
+        where: {
+          conversationId,
+          ...(validSince ? { createdAt: { gt: validSince } } : {}),
+          ...(cursor
+            ? {
+                OR: [
+                  { createdAt: { lt: cursor.createdAt } },
+                  { createdAt: cursor.createdAt, id: { lt: cursor.id } }
+                ]
+              }
+            : {})
+        },
+        orderBy: [
+          { createdAt: "desc" },
+          { id: "desc" }
+        ],
+        take: take + 1,
         select: messageSelect
       });
 
-      return [...messages].reverse().map(serializeMessage);
+      const hasMore = messages.length > take;
+      const pageItems = hasMore ? messages.slice(0, take) : messages;
+      const lastPageItem = pageItems[pageItems.length - 1];
+      const nextCursor = hasMore && lastPageItem
+        ? encodeCursor(lastPageItem.createdAt as Date, lastPageItem.id)
+        : null;
+
+      return {
+        items: [...pageItems].reverse().map(serializeMessage),
+        nextCursor,
+        hasMore
+      };
     },
 
     assertConversationMember: (conversationId: string, userId: string) =>

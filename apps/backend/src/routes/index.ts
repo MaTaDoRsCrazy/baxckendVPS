@@ -20,7 +20,7 @@ export async function registerApiRoutes(
 ) {
   const auth = buildAuthController(services, env);
   const users = buildUsersController(services, env);
-  const chats = buildChatsController(services, env);
+  const chats = buildChatsController(services, env, gateway);
   const messages = buildMessagesController(services, env, gateway);
   const calls = buildCallsController(services, env, gateway);
   const uploads = buildUploadsController(services, env);

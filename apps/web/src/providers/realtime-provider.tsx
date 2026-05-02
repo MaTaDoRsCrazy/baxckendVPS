@@ -3,12 +3,40 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { io, type Socket } from "socket.io-client";
-import { acceptCall, rejectCall } from "../api/messenger";
+import { acceptCall, getChats, type MessageListPage, rejectCall } from "../api/messenger";
 import { useAuth } from "./auth-provider";
 
 type ChatListEnvelope = { data: Conversation[] };
 type ChatEnvelope = { data: Conversation };
-type MessagesEnvelope = { data: Message[] };
+type MessagesEnvelope = { data: MessageListPage };
+type RealtimeMessage = Message & {
+  clientTempId?: string | null;
+  deliveryState?: "PENDING" | "SENT" | "FAILED" | null;
+};
+
+function mergeMessages(current: RealtimeMessage[], incoming: RealtimeMessage) {
+  const next = [...current];
+  const index = next.findIndex((entry) =>
+    entry.id === incoming.id ||
+    (incoming.clientTempId && entry.clientTempId === incoming.clientTempId) ||
+    (entry.clientTempId && entry.clientTempId === incoming.clientTempId)
+  );
+
+  if (index >= 0) {
+    next[index] = {
+      ...next[index],
+      ...incoming,
+      deliveryState: "SENT"
+    };
+  } else {
+    next.push({
+      ...incoming,
+      deliveryState: incoming.deliveryState ?? "SENT"
+    });
+  }
+
+  return next.sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+}
 
 interface RealtimeContextValue {
   socket: Socket | null;
@@ -49,14 +77,28 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
     socketRef.current = socket;
 
+    const syncAfterReconnect = async () => {
+      const chats = await getChats();
+      queryClient.setQueryData<ChatListEnvelope>(["chats"], chats);
+      await queryClient.invalidateQueries({ queryKey: ["messages"] });
+    };
+
+    socket.on("connect", () => {
+      void syncAfterReconnect();
+    });
+
     socket.on("message:new", (message) => {
       queryClient.setQueryData<MessagesEnvelope>(["messages", message.conversationId], (current) => ({
-        data: [...(current?.data ?? []).filter((entry) => entry.id !== message.id), message]
+        data: {
+          items: mergeMessages(current?.data.items ?? [], message),
+          nextCursor: current?.data.nextCursor ?? null,
+          hasMore: current?.data.hasMore ?? false
+        }
       }));
 
       queryClient.setQueryData<ChatEnvelope>(["chat", message.conversationId], (current) =>
         current
-          ? { data: { ...current.data, messages: [...(current.data.messages ?? []).filter((entry) => entry.id !== message.id), message] } }
+          ? { data: { ...current.data, messages: mergeMessages(current.data.messages ?? [], message) } }
           : current
       );
 
@@ -73,30 +115,46 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
     socket.on("message:updated", (message) => {
       queryClient.setQueryData<MessagesEnvelope>(["messages", message.conversationId], (current) => ({
-        data: (current?.data ?? []).map((entry) => (entry.id === message.id ? message : entry))
+        data: {
+          items: mergeMessages(current?.data.items ?? [], message),
+          nextCursor: current?.data.nextCursor ?? null,
+          hasMore: current?.data.hasMore ?? false
+        }
       }));
     });
 
     socket.on("message:deleted", (message) => {
       queryClient.setQueryData<MessagesEnvelope>(["messages", message.conversationId], (current) => ({
-        data: (current?.data ?? []).map((entry) => (entry.id === message.id ? message : entry))
+        data: {
+          items: mergeMessages(current?.data.items ?? [], message),
+          nextCursor: current?.data.nextCursor ?? null,
+          hasMore: current?.data.hasMore ?? false
+        }
       }));
     });
 
     socket.on("message:read", ({ conversationId, messageId, userId }) => {
       queryClient.setQueryData<MessagesEnvelope>(["messages", conversationId], (current) => ({
-        data: (current?.data ?? []).map((entry) =>
-          entry.id === messageId
-            ? {
-                ...entry,
-                statuses: [
-                  ...(entry.statuses ?? []).filter((status) => status.userId !== userId),
-                  { userId, status: "READ", createdAt: new Date().toISOString() }
-                ]
-              }
-            : entry
-        )
+        data: {
+          items: (current?.data.items ?? []).map((entry: Message) =>
+            entry.id === messageId
+              ? {
+                  ...entry,
+                  statuses: [
+                    ...(entry.statuses ?? []).filter((status: { userId: string }) => status.userId !== userId),
+                    { userId, status: "READ", createdAt: new Date().toISOString() }
+                  ]
+                }
+              : entry
+          ),
+          nextCursor: current?.data.nextCursor ?? null,
+          hasMore: current?.data.hasMore ?? false
+        }
       }));
+    });
+
+    socket.on("chat:updated", () => {
+      void queryClient.invalidateQueries({ queryKey: ["chats"] });
     });
 
     socket.on("typing:start", ({ conversationId, userId }) => {

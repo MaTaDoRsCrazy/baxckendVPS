@@ -40,8 +40,10 @@ import com.emessenger.app.R
 import com.emessenger.app.core.design.PulseLineAvatar
 import com.emessenger.app.core.design.PulseLineEmptyState
 import com.emessenger.app.core.utils.displayTitle
+import com.emessenger.app.core.utils.displayNameOrFallback
 import com.emessenger.app.core.utils.formatDayDivider
 import com.emessenger.app.core.utils.formatPresence
+import com.emessenger.app.core.utils.resolvedSenderLabel
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -156,10 +158,12 @@ fun ChatScreen(
                 ) {
                     itemsIndexed(uiState.messages, key = { _, item -> item.id }) { index, message ->
                         val previous = uiState.messages.getOrNull(index - 1)
-                        if (previous == null || formatDayDivider(previous.createdAt) != formatDayDivider(message.createdAt)) {
+                        val previousDay = formatDayDivider(previous?.createdAt)
+                        val currentDay = formatDayDivider(message.createdAt)
+                        if ((previous == null || previousDay != currentDay) && currentDay.isNotBlank()) {
                             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                                 Text(
-                                    text = formatDayDivider(message.createdAt),
+                                    text = currentDay,
                                     modifier = Modifier.padding(vertical = 8.dp),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -167,6 +171,13 @@ fun ChatScreen(
                                 )
                             }
                         }
+                        val senderMember = uiState.conversation?.members?.firstOrNull { it.userId == message.senderId }
+                        val senderLabel = message.senderLabel
+                            .takeUnless { it.isBlank() }
+                            ?: message.resolvedSenderLabel(senderMember)
+                                .takeUnless { it.isBlank() }
+                            ?: senderMember?.displayNameOrFallback()
+                            ?: "Пользователь"
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = if (message.senderId == uiState.currentUserId) Arrangement.End else Arrangement.Start
@@ -174,9 +185,7 @@ fun ChatScreen(
                             MessageBubble(
                                 message = message,
                                 own = message.senderId == uiState.currentUserId,
-                                senderLabel = message.sender?.displayName
-                                    ?: uiState.conversation?.members?.firstOrNull { it.userId == message.senderId }?.displayName
-                                    ?: "PulseLine"
+                                senderLabel = senderLabel
                             )
                         }
                     }

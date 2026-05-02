@@ -61,26 +61,29 @@ export function ChatsPage() {
 
   const chatsQuery = useQuery({
     queryKey: ["chats"],
-    queryFn: getChats
+    queryFn: getChats,
+    staleTime: 15_000
   });
 
   const chatQuery = useQuery({
     queryKey: ["chat", chatId],
     queryFn: () => getChat(chatId!),
-    enabled: Boolean(chatId)
+    enabled: Boolean(chatId),
+    staleTime: 15_000
   });
 
   const messagesQuery = useQuery({
     queryKey: ["messages", chatId],
-    queryFn: () => getChatMessages(chatId!),
-    enabled: Boolean(chatId)
+    queryFn: () => getChatMessages(chatId!, { limit: 50 }),
+    enabled: Boolean(chatId),
+    staleTime: 15_000
   });
 
   useQuery({
-    queryKey: ["chat-read", chatId, messagesQuery.data?.data?.length],
-    enabled: Boolean(chatId && messagesQuery.data?.data?.length),
+    queryKey: ["chat-read", chatId, messagesQuery.data?.data?.items?.length],
+    enabled: Boolean(chatId && messagesQuery.data?.data?.items?.length),
     queryFn: async () => {
-      const unread = (messagesQuery.data?.data ?? []).filter((message) => message.senderId !== auth?.user.id);
+      const unread = (messagesQuery.data?.data.items ?? []).filter((message: Message) => message.senderId !== auth?.user.id);
       for (const message of unread) {
         await markMessageRead(message.id);
       }
@@ -98,7 +101,7 @@ export function ChatsPage() {
 
   const chats = chatsQuery.data?.data ?? [];
   const conversation = chatQuery.data?.data;
-  const messages = messagesQuery.data?.data ?? [];
+  const messages = messagesQuery.data?.data.items ?? [];
   const typingUsers = typingByConversation[chatId ?? ""] ?? [];
   const title = getConversationTitle(conversation, auth?.user.id);
   const otherMembers = conversation?.members?.filter((member) => member.userId !== auth?.user.id) ?? [];
@@ -157,7 +160,7 @@ export function ChatsPage() {
                 </div>
               </div>
               <div className="flex-1 space-y-3 overflow-auto bg-canvas/70 px-4 py-4">
-                {messages.map((message) => {
+                {messages.map((message: Message) => {
                   const own = message.senderId === auth?.user.id;
                   return (
                     <div key={message.id} className={`flex ${own ? "justify-end" : "justify-start"}`}>
@@ -166,6 +169,8 @@ export function ChatsPage() {
                         <MessageContent message={message} />
                         <div className="mt-2 text-[11px] opacity-70">
                           {formatTimeRu(message.createdAt)} {own ? `• ${lastReadLabel(message, auth?.user.id ?? "")}` : ""}
+                          {message.deliveryState === "PENDING" ? " • Отправляется" : ""}
+                          {message.deliveryState === "FAILED" ? " • Не отправлено" : ""}
                         </div>
                       </div>
                     </div>

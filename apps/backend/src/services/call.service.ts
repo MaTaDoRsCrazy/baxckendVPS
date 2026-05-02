@@ -84,9 +84,15 @@ export function createCallService(prisma: PrismaClient, env: AppEnv) {
         }
       });
 
-      await prisma.conversation.update({
+      void prisma.conversation.update({
         where: { id: input.conversationId },
         data: { updatedAt: new Date() }
+      }).catch((error) => {
+        console.error("call:start:conversation_touch_error", {
+          conversationId: input.conversationId,
+          callId: call.id,
+          error: error instanceof Error ? error.message : String(error)
+        });
       });
 
       const fullCall = await prisma.call.findUniqueOrThrow({

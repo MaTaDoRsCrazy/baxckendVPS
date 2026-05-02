@@ -134,6 +134,7 @@ model ConversationMember {
 
 model Message {
   id               String          @id @default(cuid())
+  clientTempId     String?
   conversationId   String
   senderId         String
   type             MessageType     @default(TEXT)
@@ -153,8 +154,9 @@ model Message {
   replies          Message[]       @relation("MessageReplies")
   statuses         MessageStatus[]
 
-  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([conversationId, createdAt(sort: Desc), id])
   @@index([senderId])
+  @@index([clientTempId])
 }
 
 model MessageStatus {

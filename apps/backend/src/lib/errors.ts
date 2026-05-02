@@ -37,7 +37,7 @@ export function conflict(message = "Conflict"): AppError {
 }
 
 export function registerErrorHandler() {
-  return async (error: unknown, _request: FastifyRequest, reply: FastifyReply) => {
+  return async (error: unknown, request: FastifyRequest, reply: FastifyReply) => {
     if (error instanceof AppError) {
       return reply.status(error.statusCode).send({
         error: {
@@ -67,7 +67,11 @@ export function registerErrorHandler() {
       });
     }
 
-    console.error(error);
+    request.log.error({
+      route: request.routeOptions.url,
+      method: request.method,
+      error: error instanceof Error ? error.message : String(error)
+    }, "request_failed");
     return reply.status(500).send({
       error: {
         code: "INTERNAL_SERVER_ERROR",

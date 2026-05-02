@@ -21,16 +21,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.emessenger.app.core.utils.formatMessageTime
+import com.emessenger.app.core.utils.resolvedSenderLabel
 import com.emessenger.app.domain.model.MessageModel
 
 @Composable
 fun MessageBubble(
     message: MessageModel,
     own: Boolean,
-    senderLabel: String
+    senderLabel: String? = "Пользователь"
 ) {
     val context = LocalContext.current
     val mediaPlayerState = remember { mutableStateOf<MediaPlayer?>(null) }
+    val safeSenderLabel = senderLabel.orEmpty().ifBlank { message.resolvedSenderLabel() }
+    val safeBody = message.body.orEmpty()
+    val safeAttachmentName = message.attachmentName?.takeUnless { it.isBlank() } ?: "Файл"
+    val safeAttachmentMimeType = message.attachmentMimeType?.takeUnless { it.isBlank() } ?: "application/octet-stream"
+    val safeCreatedAt = formatMessageTime(message.createdAt)
 
     fun openExternal(uri: String) {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))
@@ -52,7 +58,7 @@ fun MessageBubble(
     ) {
         if (!own) {
             Text(
-                text = senderLabel,
+                text = safeSenderLabel,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.secondary
             )
@@ -65,9 +71,9 @@ fun MessageBubble(
                 color = if (own) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
             )
         } else {
-            if (!message.body.isNullOrBlank()) {
+            if (safeBody.isNotBlank()) {
                 Text(
-                    text = message.body,
+                    text = safeBody,
                     style = MaterialTheme.typography.bodyLarge,
                     color = if (own) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                 )
@@ -78,7 +84,7 @@ fun MessageBubble(
                     if (!message.attachmentUrl.isNullOrBlank()) {
                         AsyncImage(
                             model = message.attachmentUrl,
-                            contentDescription = message.attachmentName,
+                            contentDescription = safeAttachmentName,
                             modifier = Modifier
                                 .padding(top = 4.dp)
                                 .clip(MaterialTheme.shapes.large)
@@ -86,19 +92,21 @@ fun MessageBubble(
                         )
                     }
                 }
+
                 "FILE" -> {
                     if (!message.attachmentUrl.isNullOrBlank()) {
                         Text(
-                            text = message.attachmentName ?: "Файл",
+                            text = safeAttachmentName,
                             modifier = Modifier.clickable { openExternal(message.attachmentUrl) },
                             color = if (own) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
                         )
                     }
                 }
+
                 "VOICE" -> {
                     if (!message.attachmentUrl.isNullOrBlank()) {
                         Text(
-                            text = "Голосовое сообщение",
+                            text = if (safeAttachmentMimeType.startsWith("audio/")) "Голосовое сообщение" else safeAttachmentName,
                             modifier = Modifier.clickable {
                                 val current = mediaPlayerState.value
                                 if (current?.isPlaying == true) {
@@ -123,13 +131,18 @@ fun MessageBubble(
 
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                text = formatMessageTime(message.createdAt),
+                text = safeCreatedAt,
                 style = MaterialTheme.typography.bodySmall,
                 color = if (own) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.78f) else MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (own) {
                 Text(
-                    text = if (message.statuses.any { it.status == "READ" }) "Прочитано" else "Доставлено",
+                    text = when {
+                        message.deliveryState == "FAILED" -> "Не отправлено"
+                        message.deliveryState == "PENDING" -> "Отправляется"
+                        message.statuses.any { it.status == "READ" } -> "Прочитано"
+                        else -> "Доставлено"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = if (own) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.78f) else MaterialTheme.colorScheme.onSurfaceVariant
                 )

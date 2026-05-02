@@ -1,6 +1,9 @@
+import type { Conversation, Message } from "@emessenger/shared";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { createMessage, uploadFile } from "../api/messenger";
+import { createMessage, type MessageListPage, uploadFile } from "../api/messenger";
 import { translateWebError } from "../lib/ui";
+import { useAuth } from "../providers/auth-provider";
 import { useRealtime } from "../providers/realtime-provider";
 
 interface PendingAttachment {
@@ -8,8 +11,53 @@ interface PendingAttachment {
   previewUrl?: string;
 }
 
+type MessagesEnvelope = { data: MessageListPage };
+type ChatListEnvelope = { data: Conversation[] };
+type RealtimeMessage = Message & {
+  clientTempId?: string | null;
+  deliveryState?: "PENDING" | "SENT" | "FAILED" | null;
+  senderLabel?: string | null;
+};
+
+function mergeMessages(current: RealtimeMessage[], incoming: RealtimeMessage) {
+  const next = [...current];
+  const index = next.findIndex((entry) =>
+    entry.id === incoming.id ||
+    (incoming.clientTempId && entry.clientTempId === incoming.clientTempId) ||
+    (entry.clientTempId && entry.clientTempId === incoming.clientTempId)
+  );
+
+  if (index >= 0) {
+    next[index] = {
+      ...next[index],
+      ...incoming
+    };
+  } else {
+    next.push(incoming);
+  }
+
+  return next.sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+}
+
+function upsertChatPreview(chats: Conversation[], message: Message) {
+  const currentChat = chats.find((chat) => chat.id === message.conversationId);
+  if (!currentChat) {
+    return chats;
+  }
+
+  const nextChat = {
+    ...currentChat,
+    messages: [message],
+    updatedAt: message.createdAt
+  };
+
+  return [nextChat, ...chats.filter((chat) => chat.id !== message.conversationId)];
+}
+
 export function MessageComposer({ conversationId }: { conversationId: string }) {
+  const { auth } = useAuth();
   const { socket } = useRealtime();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -35,6 +83,68 @@ export function MessageComposer({ conversationId }: { conversationId: string }) 
     };
   }, [conversationId, pendingAttachment?.previewUrl, socket]);
 
+  function buildOptimisticMessage(input: {
+    clientTempId: string;
+    type: string;
+    body: string | null;
+    attachmentUrl?: string | null;
+    attachmentName?: string | null;
+    attachmentMimeType?: string | null;
+    attachmentSize?: number | null;
+  }): RealtimeMessage {
+    const now = new Date().toISOString();
+    const user = auth?.user;
+
+    return {
+      id: `temp:${input.clientTempId}`,
+      clientTempId: input.clientTempId,
+      conversationId,
+      senderId: user?.id ?? "me",
+      type: input.type as Message["type"],
+      body: input.body,
+      attachmentUrl: input.attachmentUrl ?? null,
+      attachmentName: input.attachmentName ?? null,
+      attachmentMimeType: input.attachmentMimeType ?? null,
+      attachmentSize: input.attachmentSize ?? null,
+      replyToMessageId: null,
+      isEdited: false,
+      isDeleted: false,
+      createdAt: now,
+      updatedAt: now,
+      sender: user,
+      senderLabel: user?.displayName ?? user?.fullName ?? user?.username ?? user?.email ?? user?.phone ?? "Пользователь",
+      statuses: user
+        ? [{ userId: user.id, status: "READ", createdAt: now }]
+        : [],
+      deliveryState: "PENDING"
+    };
+  }
+
+  function applyOptimisticMessage(message: RealtimeMessage) {
+    queryClient.setQueryData<MessagesEnvelope>(["messages", conversationId], (current) => ({
+      data: {
+        items: mergeMessages(current?.data.items ?? [], message),
+        nextCursor: current?.data.nextCursor ?? null,
+        hasMore: current?.data.hasMore ?? false
+      }
+    }));
+
+    queryClient.setQueryData<ChatListEnvelope>(["chats"], (current) =>
+      current
+        ? {
+            data: upsertChatPreview(current.data, message)
+          }
+        : current
+    );
+  }
+
+  function markMessageFailed(clientTempId: string, fallbackMessage: RealtimeMessage) {
+    applyOptimisticMessage({
+      ...fallbackMessage,
+      deliveryState: "FAILED"
+    });
+  }
+
   async function sendMessage() {
     const body = value.trim();
     if (!body && !pendingAttachment) return;
@@ -42,7 +152,33 @@ export function MessageComposer({ conversationId }: { conversationId: string }) 
     setIsSending(true);
     setError(null);
 
+    const clientTempId = crypto.randomUUID();
+
     try {
+      let optimisticMessage = buildOptimisticMessage({
+        clientTempId,
+        type: "TEXT",
+        body: body || null
+      });
+
+      if (pendingAttachment) {
+        optimisticMessage = buildOptimisticMessage({
+          clientTempId,
+          type: pendingAttachment.file.type.startsWith("image/")
+            ? "IMAGE"
+            : pendingAttachment.file.type.startsWith("audio/")
+              ? "VOICE"
+              : "FILE",
+          body: body || null,
+          attachmentName: pendingAttachment.file.name,
+          attachmentMimeType: pendingAttachment.file.type || "application/octet-stream",
+          attachmentSize: pendingAttachment.file.size
+        });
+      }
+
+      applyOptimisticMessage(optimisticMessage);
+
+      let response;
       if (pendingAttachment) {
         const upload = await uploadFile(pendingAttachment.file);
         const mimeType = upload.data.mimeType;
@@ -52,8 +188,9 @@ export function MessageComposer({ conversationId }: { conversationId: string }) 
             ? "VOICE"
             : "FILE";
 
-        await createMessage({
+        response = await createMessage({
           conversationId,
+          clientTempId,
           type,
           body: body || null,
           attachmentUrl: upload.data.url,
@@ -62,12 +199,18 @@ export function MessageComposer({ conversationId }: { conversationId: string }) 
           attachmentSize: upload.data.size
         });
       } else {
-        await createMessage({
+        response = await createMessage({
           conversationId,
+          clientTempId,
           body,
           type: "TEXT"
         });
       }
+
+      applyOptimisticMessage({
+        ...response.data,
+        deliveryState: "SENT"
+      });
 
       if (pendingAttachment?.previewUrl) {
         URL.revokeObjectURL(pendingAttachment.previewUrl);
@@ -76,6 +219,21 @@ export function MessageComposer({ conversationId }: { conversationId: string }) 
       setPendingAttachment(null);
       socket?.emit("typing:stop", { conversationId });
     } catch (submitError) {
+      const fallbackMessage = buildOptimisticMessage({
+        clientTempId,
+        type: pendingAttachment
+          ? pendingAttachment.file.type.startsWith("image/")
+            ? "IMAGE"
+            : pendingAttachment.file.type.startsWith("audio/")
+              ? "VOICE"
+              : "FILE"
+          : "TEXT",
+        body: body || null,
+        attachmentName: pendingAttachment?.file.name,
+        attachmentMimeType: pendingAttachment?.file.type || undefined,
+        attachmentSize: pendingAttachment?.file.size
+      });
+      markMessageFailed(clientTempId, fallbackMessage);
       setError(submitError instanceof Error ? submitError.message : translateWebError());
     } finally {
       setIsSending(false);

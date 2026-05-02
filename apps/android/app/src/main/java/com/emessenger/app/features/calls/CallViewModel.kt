@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 data class CallUiState(
     val callId: String? = null,
@@ -40,12 +41,22 @@ class CallViewModel @Inject constructor(
         if (loadedCallId == callId && (_uiState.value.connected || _uiState.value.loading)) return
         loadedCallId = callId
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(callId = callId, loading = true, status = "Соединение…", error = null)
+            _uiState.value = _uiState.value.copy(callId = callId, loading = true, status = "Соединение...", error = null)
             runCatching {
                 val historyCall = callRepository.getHistory().firstOrNull { it.id == callId }
-                val token = callRepository.getToken(callId)
+                val token = try {
+                    withTimeout(10_000) { callRepository.getToken(callId) }
+                } catch (_: Throwable) {
+                    throw IllegalStateException("Не удалось получить токен звонка")
+                }
                 val isVideo = historyCall?.type == "VIDEO"
-                liveKitController.connect(token.url, token.token, audio = true, video = isVideo)
+                try {
+                    withTimeout(15_000) {
+                        liveKitController.connect(token.url, token.token, audio = true, video = isVideo)
+                    }
+                } catch (_: Throwable) {
+                    throw IllegalStateException("Не удалось подключиться к звонку")
+                }
                 Triple(historyCall, token.roomName, isVideo)
             }.onSuccess { (call, roomName, _) ->
                 _uiState.value = _uiState.value.copy(
@@ -58,12 +69,12 @@ class CallViewModel @Inject constructor(
                     loading = false,
                     startedAtMillis = System.currentTimeMillis()
                 )
-            }.onFailure {
+            }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(
                     loading = false,
                     connected = false,
                     status = "Звонок завершён",
-                    error = translateError(it.message)
+                    error = translateError(error.message)
                 )
             }
         }

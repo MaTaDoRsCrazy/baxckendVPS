@@ -15,8 +15,14 @@ class SocketManager @Inject constructor() {
             .setTransports(arrayOf("websocket"))
             .setPath("/socket.io")
             .setAuth(mapOf("token" to token))
+            .setReconnection(true)
+            .setReconnectionAttempts(Int.MAX_VALUE)
+            .setReconnectionDelay(1_000)
+            .setReconnectionDelayMax(5_000)
+            .setTimeout(10_000)
             .build()
 
+        socket?.disconnect()
         socket = IO.socket(BuildConfig.SOCKET_URL, options).apply { connect() }
     }
 
@@ -26,6 +32,10 @@ class SocketManager @Inject constructor() {
 
     fun on(event: String, listener: (Array<Any>) -> Unit) {
         socket?.on(event, listener)
+    }
+
+    fun off(event: String) {
+        socket?.off(event)
     }
 
     fun disconnect() {

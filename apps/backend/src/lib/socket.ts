@@ -9,6 +9,7 @@ import type { AppServices } from "../services/index.js";
 
 const sendMessageSchema = z.object({
   conversationId: z.string().min(1),
+  clientTempId: z.string().trim().min(1).max(128).optional().nullable(),
   type: z.enum(["TEXT", "IMAGE", "FILE", "VOICE", "SYSTEM"]).default("TEXT"),
   body: z.string().trim().min(1).optional().nullable(),
   attachmentUrl: z.string().url().optional().nullable(),
@@ -79,6 +80,18 @@ export class RealtimeGateway {
 
   emitToUser(userId: string, event: string, payload: unknown) {
     this.io.to(this.getUserRoom(userId)).emit(event, payload);
+  }
+
+  joinConversationForUser(userId: string, conversationId: string) {
+    const socketIds = this.onlineUsers.get(userId);
+    if (!socketIds?.size) {
+      return;
+    }
+
+    socketIds.forEach((socketId) => {
+      const socket = this.io.sockets.sockets.get(socketId);
+      socket?.join(this.getConversationRoom(conversationId));
+    });
   }
 
   private getUserRoom(userId: string) {

@@ -15,7 +15,9 @@ import { createServices } from "./services/index.js";
 
 export async function buildApp() {
   const app = Fastify({
-    logger: env.NODE_ENV !== "production",
+    logger: {
+      level: env.NODE_ENV === "production" ? "info" : "debug"
+    },
     bodyLimit: env.MAX_UPLOAD_SIZE_MB * 1024 * 1024 + 1024 * 512
   });
 

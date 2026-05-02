@@ -10,6 +10,7 @@ import com.emessenger.app.domain.model.ConversationModel
 import com.emessenger.app.domain.model.MessageModel
 import com.emessenger.app.domain.repository.CallRepository
 import com.emessenger.app.domain.repository.ChatRepository
+import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -38,7 +39,8 @@ class ChatViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
-    private var loadJob: Job? = null
+    private val gson = Gson()
+    private var observeJob: Job? = null
     private var currentChatId: String? = null
 
     init {
@@ -50,26 +52,79 @@ class ChatViewModel @Inject constructor(
     }
 
     fun load(chatId: String) {
-        if (currentChatId == chatId && (_uiState.value.messages.isNotEmpty() || _uiState.value.loading)) return
-        currentChatId = chatId
-        loadJob?.cancel()
-        loadJob = viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(loading = true, error = null)
-            runCatching {
-                val conversation = chatRepository.getChat(chatId)
-                chatRepository.refreshMessages(chatId)
-                conversation
-            }.onSuccess { conversation ->
-                chatRepository.observeMessages(chatId).collect { messages ->
-                    _uiState.value = _uiState.value.copy(
-                        conversation = conversation,
-                        messages = messages,
-                        loading = false,
-                        error = null
-                    )
+        if (currentChatId != chatId) {
+            currentChatId = chatId
+            attachSocketListeners(chatId)
+        }
+
+        observeJob?.cancel()
+        observeJob = viewModelScope.launch {
+            chatRepository.observeMessages(chatId).collect { messages ->
+                _uiState.value = _uiState.value.copy(
+                    messages = messages,
+                    loading = _uiState.value.loading && messages.isEmpty()
+                )
+            }
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(loading = _uiState.value.messages.isEmpty(), error = null)
+            runCatching { chatRepository.getChat(chatId) }
+                .onSuccess { conversation ->
+                    _uiState.value = _uiState.value.copy(conversation = conversation, loading = false, error = null)
                 }
-            }.onFailure {
-                _uiState.value = _uiState.value.copy(error = translateError(it.message), loading = false)
+                .onFailure {
+                    _uiState.value = _uiState.value.copy(error = translateError(it.message), loading = false)
+                }
+        }
+
+        viewModelScope.launch {
+            runCatching { chatRepository.refreshMessages(chatId) }
+                .onFailure {
+                    if (_uiState.value.messages.isEmpty()) {
+                        _uiState.value = _uiState.value.copy(error = translateError(it.message), loading = false)
+                    }
+                }
+        }
+    }
+
+    private fun attachSocketListeners(chatId: String) {
+        socketManager.off("message:new")
+        socketManager.off("connect")
+        socketManager.off("typing:start")
+        socketManager.off("typing:stop")
+
+        socketManager.on("message:new") { args ->
+            val payload = args.firstOrNull()?.toString().orEmpty()
+            if (payload.isBlank()) return@on
+            runCatching { gson.fromJson(payload, MessageModel::class.java) }
+                .onSuccess { message ->
+                    if (message.conversationId == chatId) {
+                        viewModelScope.launch {
+                            runCatching { chatRepository.upsertIncomingMessage(message) }
+                        }
+                    }
+                }
+        }
+
+        socketManager.on("connect") {
+            viewModelScope.launch {
+                val latestCreatedAt = chatRepository.latestMessageCreatedAt(chatId)
+                runCatching { chatRepository.refreshMessages(chatId, latestCreatedAt) }
+            }
+        }
+
+        socketManager.on("typing:start") { args ->
+            val payload = args.firstOrNull()?.toString().orEmpty()
+            if (payload.contains(chatId)) {
+                _uiState.value = _uiState.value.copy(typing = true)
+            }
+        }
+
+        socketManager.on("typing:stop") { args ->
+            val payload = args.firstOrNull()?.toString().orEmpty()
+            if (payload.contains(chatId)) {
+                _uiState.value = _uiState.value.copy(typing = false)
             }
         }
     }
@@ -90,7 +145,7 @@ class ChatViewModel @Inject constructor(
             runCatching { chatRepository.sendMessage(chatId, body.trim()) }
                 .onSuccess {
                     socketManager.emit("typing:stop", mapOf("conversationId" to chatId))
-                    _uiState.value = _uiState.value.copy(typing = false)
+                    _uiState.value = _uiState.value.copy(typing = false, error = null)
                 }
                 .onFailure { _uiState.value = _uiState.value.copy(error = translateError(it.message)) }
         }

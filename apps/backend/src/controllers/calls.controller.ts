@@ -14,12 +14,26 @@ const callParamsSchema = z.object({
 });
 
 export function buildCallsController(services: AppServices, env: AppEnv, gateway: RealtimeGateway) {
+  function emitCallEvent(conversationId: string, event: string, payload: unknown) {
+    queueMicrotask(() => {
+      try {
+        gateway.emitToConversation(conversationId, event, payload);
+      } catch (error) {
+        console.error("call:socket_emit_error", {
+          conversationId,
+          event,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+  }
+
   return {
     start: async (request: any, reply: any) => {
       const auth = requireAuth(request, env);
       const input = startCallSchema.parse(request.body);
       const data = await services.callService.startCall(auth.userId, input);
-      gateway.emitToConversation(input.conversationId, "call:incoming", data);
+      emitCallEvent(input.conversationId, "call:incoming", data);
       return reply.status(201).send({ data });
     },
 
@@ -27,7 +41,7 @@ export function buildCallsController(services: AppServices, env: AppEnv, gateway
       const auth = requireAuth(request, env);
       const params = callParamsSchema.parse(request.params);
       const data = await services.callService.acceptCall(auth.userId, params.callId);
-      gateway.emitToConversation(data.conversationId, "call:accepted", data);
+      emitCallEvent(data.conversationId, "call:accepted", data);
       return reply.send({ data });
     },
 
@@ -35,7 +49,7 @@ export function buildCallsController(services: AppServices, env: AppEnv, gateway
       const auth = requireAuth(request, env);
       const params = callParamsSchema.parse(request.params);
       const data = await services.callService.rejectCall(auth.userId, params.callId);
-      gateway.emitToConversation(data.conversationId, "call:rejected", data);
+      emitCallEvent(data.conversationId, "call:rejected", data);
       return reply.send({ data });
     },
 
@@ -43,7 +57,7 @@ export function buildCallsController(services: AppServices, env: AppEnv, gateway
       const auth = requireAuth(request, env);
       const params = callParamsSchema.parse(request.params);
       const data = await services.callService.endCall(auth.userId, params.callId);
-      gateway.emitToConversation(data.conversationId, "call:ended", data);
+      emitCallEvent(data.conversationId, "call:ended", data);
       return reply.send({ data });
     },
 

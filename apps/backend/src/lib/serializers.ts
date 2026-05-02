@@ -29,6 +29,7 @@ export const conversationMemberSelect = {
 
 export const messageSelect = {
   id: true,
+  clientTempId: true,
   conversationId: true,
   senderId: true,
   type: true,
@@ -80,9 +81,12 @@ export function serializeConversationMember<T extends Record<string, any>>(membe
 }
 
 export function serializeMessage<T extends Record<string, any>>(message: T) {
+  const sender = message.sender ? serializeUser(message.sender) : message.sender;
   return {
     ...message,
-    sender: message.sender ? serializeUser(message.sender) : message.sender
+    sender,
+    senderLabel: sender ? getDisplayName(sender) : "Пользователь",
+    deliveryState: message.deliveryState ?? "SENT"
   };
 }
 

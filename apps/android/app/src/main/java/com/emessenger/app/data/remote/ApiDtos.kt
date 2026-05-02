@@ -5,6 +5,7 @@ import com.emessenger.app.domain.model.CallModel
 import com.emessenger.app.domain.model.ConversationModel
 import com.emessenger.app.domain.model.LiveKitTokenModel
 import com.emessenger.app.domain.model.MessageModel
+import com.emessenger.app.domain.model.MessagePageModel
 import com.emessenger.app.domain.model.UploadModel
 import com.emessenger.app.domain.model.UserModel
 
@@ -40,6 +41,7 @@ data class RefreshRequest(
 
 data class CreateMessageRequest(
     val conversationId: String,
+    val clientTempId: String? = null,
     val type: String = "TEXT",
     val body: String? = null,
     val attachmentUrl: String? = null,
@@ -57,7 +59,7 @@ typealias AuthEnvelope = ApiEnvelope<AuthSessionModel>
 typealias UserEnvelope = ApiEnvelope<UserModel>
 typealias ConversationsEnvelope = ApiEnvelope<List<ConversationModel>>
 typealias ConversationEnvelope = ApiEnvelope<ConversationModel>
-typealias MessagesEnvelope = ApiEnvelope<List<MessageModel>>
+typealias MessagesEnvelope = ApiEnvelope<MessagePageModel>
 typealias CallEnvelope = ApiEnvelope<CallModel>
 typealias CallsEnvelope = ApiEnvelope<List<CallModel>>
 typealias LiveKitTokenEnvelope = LiveKitTokenModel

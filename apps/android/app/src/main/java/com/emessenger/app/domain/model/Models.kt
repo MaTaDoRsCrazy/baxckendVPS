@@ -31,6 +31,8 @@ data class MessageStatusModel(
 
 data class MessageModel(
     val id: String,
+    val localId: String? = null,
+    val clientTempId: String? = null,
     val conversationId: String,
     val senderId: String,
     val body: String?,
@@ -42,8 +44,10 @@ data class MessageModel(
     val createdAt: String,
     val isEdited: Boolean = false,
     val isDeleted: Boolean = false,
+    val deliveryState: String = "SENT",
     val statuses: List<MessageStatusModel> = emptyList(),
-    val sender: UserModel? = null
+    val sender: UserModel? = null,
+    val senderLabel: String = "Пользователь"
 )
 
 data class ConversationModel(
@@ -53,6 +57,12 @@ data class ConversationModel(
     val avatarUrl: String? = null,
     val members: List<ConversationMemberModel> = emptyList(),
     val messages: List<MessageModel> = emptyList()
+)
+
+data class MessagePageModel(
+    val items: List<MessageModel> = emptyList(),
+    val nextCursor: String? = null,
+    val hasMore: Boolean = false
 )
 
 data class CallParticipantModel(

@@ -45,7 +45,12 @@ interface MessengerApi {
     suspend fun chat(@Path("chatId") chatId: String): ConversationEnvelope
 
     @GET("api/chats/{chatId}/messages")
-    suspend fun messages(@Path("chatId") chatId: String): MessagesEnvelope
+    suspend fun messages(
+        @Path("chatId") chatId: String,
+        @Query("limit") limit: Int? = null,
+        @Query("cursor") cursor: String? = null,
+        @Query("since") since: String? = null
+    ): MessagesEnvelope
 
     @GET("api/users/search")
     suspend fun searchUsers(@Query("q") query: String): ApiEnvelope<List<com.emessenger.app.domain.model.UserModel>>

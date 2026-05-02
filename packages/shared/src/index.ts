@@ -96,6 +96,7 @@ export interface MessageStatus {
 
 export interface Message {
   id: string;
+  clientTempId?: string | null;
   conversationId: string;
   senderId: string;
   type: MessageType;
@@ -109,8 +110,16 @@ export interface Message {
   isDeleted: boolean;
   createdAt: string | Date;
   updatedAt: string | Date;
+  senderLabel?: string | null;
+  deliveryState?: "PENDING" | "SENT" | "FAILED" | null;
   sender?: User;
   statuses?: MessageStatus[];
+}
+
+export interface MessageListPage {
+  items: Message[];
+  nextCursor: string | null;
+  hasMore: boolean;
 }
 
 export interface Conversation extends DisplayNameSource {
@@ -171,6 +180,7 @@ export interface ApiError {
 export interface SocketClientEvents {
   "message:send": {
     conversationId: string;
+    clientTempId?: string | null;
     type?: MessageType;
     body?: string | null;
     attachmentUrl?: string | null;
@@ -225,6 +235,11 @@ export interface SocketServerEvents {
   };
   "user:offline": {
     userId: string;
+  };
+  "chat:updated": {
+    conversationId: string;
+    updatedAt: string | Date;
+    lastMessage: Message | null;
   };
   "call:incoming": Call;
   "call:accepted": Call;
