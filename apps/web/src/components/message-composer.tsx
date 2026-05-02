@@ -2,7 +2,6 @@ import type { Conversation, Message } from "@emessenger/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { createMessage, type MessageListPage, uploadFile } from "../api/messenger";
-import { translateWebError } from "../lib/ui";
 import { useAuth } from "../providers/auth-provider";
 import { useRealtime } from "../providers/realtime-provider";
 
@@ -18,6 +17,14 @@ type RealtimeMessage = Message & {
   deliveryState?: "PENDING" | "SENT" | "FAILED" | null;
   senderLabel?: string | null;
 };
+
+function createClientTempId() {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
 
 function mergeMessages(current: RealtimeMessage[], incoming: RealtimeMessage) {
   const next = [...current];
@@ -113,9 +120,7 @@ export function MessageComposer({ conversationId }: { conversationId: string }) 
       updatedAt: now,
       sender: user,
       senderLabel: user?.displayName ?? user?.fullName ?? user?.username ?? user?.email ?? user?.phone ?? "Пользователь",
-      statuses: user
-        ? [{ userId: user.id, status: "READ", createdAt: now }]
-        : [],
+      statuses: user ? [{ userId: user.id, status: "READ", createdAt: now }] : [],
       deliveryState: "PENDING"
     };
   }
@@ -138,43 +143,50 @@ export function MessageComposer({ conversationId }: { conversationId: string }) 
     );
   }
 
-  function markMessageFailed(clientTempId: string, fallbackMessage: RealtimeMessage) {
+  function markMessageFailed(message: RealtimeMessage) {
     applyOptimisticMessage({
-      ...fallbackMessage,
+      ...message,
       deliveryState: "FAILED"
     });
   }
 
+  function clearDraft() {
+    if (pendingAttachment?.previewUrl) {
+      URL.revokeObjectURL(pendingAttachment.previewUrl);
+    }
+    setValue("");
+    setPendingAttachment(null);
+    socket?.emit("typing:stop", { conversationId });
+  }
+
   async function sendMessage() {
     const body = value.trim();
-    if (!body && !pendingAttachment) return;
+    if (!body && !pendingAttachment) {
+      return;
+    }
 
     setIsSending(true);
     setError(null);
 
-    const clientTempId = crypto.randomUUID();
+    let optimisticMessage: RealtimeMessage | null = null;
 
     try {
-      let optimisticMessage = buildOptimisticMessage({
-        clientTempId,
-        type: "TEXT",
-        body: body || null
-      });
+      const clientTempId = createClientTempId();
 
-      if (pendingAttachment) {
-        optimisticMessage = buildOptimisticMessage({
-          clientTempId,
-          type: pendingAttachment.file.type.startsWith("image/")
+      optimisticMessage = buildOptimisticMessage({
+        clientTempId,
+        type: pendingAttachment
+          ? pendingAttachment.file.type.startsWith("image/")
             ? "IMAGE"
             : pendingAttachment.file.type.startsWith("audio/")
               ? "VOICE"
-              : "FILE",
-          body: body || null,
-          attachmentName: pendingAttachment.file.name,
-          attachmentMimeType: pendingAttachment.file.type || "application/octet-stream",
-          attachmentSize: pendingAttachment.file.size
-        });
-      }
+              : "FILE"
+          : "TEXT",
+        body: body || null,
+        attachmentName: pendingAttachment?.file.name,
+        attachmentMimeType: pendingAttachment?.file.type || undefined,
+        attachmentSize: pendingAttachment?.file.size
+      });
 
       applyOptimisticMessage(optimisticMessage);
 
@@ -212,29 +224,12 @@ export function MessageComposer({ conversationId }: { conversationId: string }) 
         deliveryState: "SENT"
       });
 
-      if (pendingAttachment?.previewUrl) {
-        URL.revokeObjectURL(pendingAttachment.previewUrl);
-      }
-      setValue("");
-      setPendingAttachment(null);
-      socket?.emit("typing:stop", { conversationId });
+      clearDraft();
     } catch (submitError) {
-      const fallbackMessage = buildOptimisticMessage({
-        clientTempId,
-        type: pendingAttachment
-          ? pendingAttachment.file.type.startsWith("image/")
-            ? "IMAGE"
-            : pendingAttachment.file.type.startsWith("audio/")
-              ? "VOICE"
-              : "FILE"
-          : "TEXT",
-        body: body || null,
-        attachmentName: pendingAttachment?.file.name,
-        attachmentMimeType: pendingAttachment?.file.type || undefined,
-        attachmentSize: pendingAttachment?.file.size
-      });
-      markMessageFailed(clientTempId, fallbackMessage);
-      setError(submitError instanceof Error ? submitError.message : translateWebError());
+      if (optimisticMessage) {
+        markMessageFailed(optimisticMessage);
+      }
+      setError(submitError instanceof Error && submitError.message ? submitError.message : "Не удалось отправить сообщение");
     } finally {
       setIsSending(false);
     }
@@ -315,6 +310,7 @@ export function MessageComposer({ conversationId }: { conversationId: string }) 
               <p className="mt-1 text-xs text-muted">{Math.round(pendingAttachment.file.size / 1024)} КБ</p>
             </div>
             <button
+              type="button"
               className="text-xs font-semibold text-coral"
               onClick={() => {
                 if (pendingAttachment.previewUrl) {
@@ -334,7 +330,7 @@ export function MessageComposer({ conversationId }: { conversationId: string }) 
       {error ? <p className="mb-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
       <div className="flex items-end gap-3">
         <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
-        <button className="secondary-btn !px-3 !py-3" onClick={() => fileInputRef.current?.click()}>
+        <button type="button" className="secondary-btn !px-3 !py-3" onClick={() => fileInputRef.current?.click()}>
           Скрепка
         </button>
         <textarea
@@ -351,12 +347,13 @@ export function MessageComposer({ conversationId }: { conversationId: string }) 
           placeholder="Напишите сообщение"
         />
         <button
+          type="button"
           className={`secondary-btn !px-3 !py-3 ${isRecording ? "!border-coral !text-coral" : ""}`}
           onClick={() => void toggleRecording()}
         >
           {isRecording ? "Стоп" : "Голос"}
         </button>
-        <button className="primary-btn" onClick={() => void sendMessage()} disabled={isSending}>
+        <button type="button" className="primary-btn" onClick={() => void sendMessage()} disabled={isSending}>
           {isSending ? "Отправка..." : "Отправить"}
         </button>
       </div>
