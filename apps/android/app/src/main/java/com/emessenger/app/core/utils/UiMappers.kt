@@ -21,6 +21,13 @@ fun translateError(message: String?): String {
         "Access denied" -> "Доступ запрещён"
         "Message body or attachment is required" -> "Сообщение не может быть пустым"
         "Call failed" -> "Не удалось начать звонок"
+        "Unsupported file type" -> "Этот тип файла не поддерживается"
+        "File is required" -> "Выберите файл"
+        "File exceeds 15MB limit" -> "Файл превышает лимит 15 МБ"
+        "User with provided username or email already exists" -> "Пользователь с таким именем или email уже существует"
+        "User is not a conversation member" -> "У вас нет доступа к этому чату"
+        "User is not a call participant", "User is not allowed to join this call" -> "У вас нет доступа к этому звонку"
+        "Call not found" -> "Звонок не найден"
         else -> message
     }
 }

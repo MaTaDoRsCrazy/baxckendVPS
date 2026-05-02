@@ -26,6 +26,7 @@ import com.emessenger.app.core.design.PulseLineAvatar
 import com.emessenger.app.core.design.PulseLineFilledButton
 import com.emessenger.app.core.design.PulseLineOutlinedButton
 import com.emessenger.app.core.design.PulseLineSectionCard
+import com.emessenger.app.core.utils.displayNameOrFallback
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,6 +37,7 @@ fun ProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val user = uiState.user
+    val displayName = user?.displayNameOrFallback() ?: "Пользователь"
 
     Scaffold(
         topBar = {
@@ -56,18 +58,19 @@ fun ProfileScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            PulseLineSectionCard(title = user?.username ?: "PulseLine", subtitle = stringResource(R.string.bio_placeholder)) {
-                PulseLineAvatar(title = user?.username ?: "PulseLine", modifier = Modifier.padding(vertical = 6.dp))
-                Text(text = user?.email ?: "—", style = MaterialTheme.typography.bodyLarge)
+            PulseLineSectionCard(title = displayName, subtitle = user?.about ?: "Ваш профиль PulseLine") {
+                PulseLineAvatar(title = displayName, modifier = Modifier.padding(vertical = 6.dp))
+                Text(text = user?.username ?: "—", style = MaterialTheme.typography.bodyLarge)
+                Text(text = user?.fullName ?: "—", style = MaterialTheme.typography.bodyMedium)
+                Text(text = user?.email ?: "—", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(text = user?.phone ?: "—", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(
-                    text = if (user?.status == "BLOCKED") stringResource(R.string.status_blocked) else stringResource(R.string.status_active),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.secondary
-                )
+                Text(text = user?.country ?: "—", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
             }
             PulseLineSectionCard(title = stringResource(R.string.about), subtitle = stringResource(R.string.version_label, BuildConfig.VERSION_NAME)) {
                 Text(text = stringResource(R.string.about_placeholder), style = MaterialTheme.typography.bodyMedium)
+            }
+            if (uiState.error != null) {
+                Text(text = uiState.error.orEmpty(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
             PulseLineFilledButton(text = stringResource(R.string.edit_profile), onClick = onEdit)
             PulseLineOutlinedButton(text = stringResource(R.string.logout), onClick = { viewModel.logout(onBack) })

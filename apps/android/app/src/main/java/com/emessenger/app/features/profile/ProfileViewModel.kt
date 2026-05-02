@@ -1,5 +1,6 @@
 package com.emessenger.app.features.profile
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.emessenger.app.core.datastore.SessionStore
@@ -37,10 +38,35 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun save(username: String, email: String, phone: String) {
+    fun save(
+        fullName: String,
+        username: String,
+        email: String,
+        phone: String,
+        about: String,
+        country: String
+    ) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(saving = true, saved = false, error = null)
-            runCatching { authRepository.updateProfile(username.trim(), email.trim().ifBlank { null }, phone.trim().ifBlank { null }) }
+            runCatching {
+                authRepository.updateProfile(
+                    fullName = fullName.trim().ifBlank { null },
+                    username = username.trim(),
+                    email = email.trim().ifBlank { null },
+                    phone = phone.trim().ifBlank { null },
+                    about = about.trim().ifBlank { null },
+                    country = country.trim().ifBlank { null }
+                )
+            }
+                .onSuccess { _uiState.value = _uiState.value.copy(saving = false, saved = true) }
+                .onFailure { _uiState.value = _uiState.value.copy(saving = false, error = translateError(it.message)) }
+        }
+    }
+
+    fun uploadAvatar(uri: Uri) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(saving = true, saved = false, error = null)
+            runCatching { authRepository.uploadAvatar(uri) }
                 .onSuccess { _uiState.value = _uiState.value.copy(saving = false, saved = true) }
                 .onFailure { _uiState.value = _uiState.value.copy(saving = false, error = translateError(it.message)) }
         }

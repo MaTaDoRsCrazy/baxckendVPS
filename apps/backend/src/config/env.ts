@@ -20,6 +20,8 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default("*"),
   SERVER_DOMAIN: z.string().optional().default(""),
   ADMIN_DOMAIN: z.string().optional().default(""),
+  UPLOADS_DIR: z.string().default("/uploads"),
+  MAX_UPLOAD_SIZE_MB: z.coerce.number().int().positive().default(15),
   POSTGRES_DB: z.string().min(1),
   POSTGRES_USER: z.string().min(1),
   POSTGRES_PASSWORD: z.string().min(1)

@@ -2,6 +2,8 @@ import type { User } from "@emessenger/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { createGroupChat, createPrivateChat, searchUsers } from "../api/messenger";
+import { Avatar } from "./avatar";
+import { getUserDisplayName } from "../lib/display";
 
 export function CreateChatPanel() {
   const queryClient = useQueryClient();
@@ -40,10 +42,13 @@ export function CreateChatPanel() {
       </div>
       <div className="mt-3 max-h-52 space-y-2 overflow-auto">
         {results.map((user) => (
-          <div key={user.id} className="flex items-center justify-between rounded-2xl border border-stroke px-3 py-2">
-            <div>
-              <p className="font-medium text-ink">{user.username}</p>
-              <p className="text-xs text-muted">{user.email ?? user.phone ?? "Нет публичных контактов"}</p>
+          <div key={user.id} className="flex items-center justify-between gap-3 rounded-2xl border border-stroke px-3 py-2">
+            <div className="flex items-center gap-3">
+              <Avatar title={getUserDisplayName(user)} avatarUrl={user.avatarUrl} className="h-10 w-10" />
+              <div>
+                <p className="font-medium text-ink">{getUserDisplayName(user)}</p>
+                <p className="text-xs text-muted">{user.username || user.email || user.phone || "Без контактов"}</p>
+              </div>
             </div>
             <div className="flex gap-2">
               <button className="secondary-btn !px-3 !py-2" onClick={() => privateMutation.mutate(user.id)}>

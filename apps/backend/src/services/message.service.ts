@@ -1,19 +1,25 @@
 import type { PrismaClient } from "@prisma/client";
 import { MessageDeliveryStatus } from "@prisma/client";
 import { badRequest, forbidden, notFound } from "../lib/errors.js";
-import { messageSelect } from "../lib/serializers.js";
+import { messageSelect, serializeMessage } from "../lib/serializers.js";
 
 interface CreateMessageInput {
   conversationId: string;
   type: "TEXT" | "IMAGE" | "FILE" | "VOICE" | "SYSTEM";
   body?: string | null;
   attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentMimeType?: string | null;
+  attachmentSize?: number | null;
   replyToMessageId?: string | null;
 }
 
 interface UpdateMessageInput {
   body?: string | null;
   attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentMimeType?: string | null;
+  attachmentSize?: number | null;
 }
 
 async function assertActiveMembership(prisma: PrismaClient, conversationId: string, userId: string) {
@@ -55,6 +61,9 @@ export function createMessageService(prisma: PrismaClient) {
           type: input.type,
           body: input.body ?? null,
           attachmentUrl: input.attachmentUrl ?? null,
+          attachmentName: input.attachmentName ?? null,
+          attachmentMimeType: input.attachmentMimeType ?? null,
+          attachmentSize: input.attachmentSize ?? null,
           replyToMessageId: input.replyToMessageId ?? null,
           statuses: {
             createMany: {
@@ -64,8 +73,8 @@ export function createMessageService(prisma: PrismaClient) {
               }))
             }
           }
-        },
-        select: messageSelect
+        } as any,
+        select: messageSelect as any
       });
 
       await prisma.conversation.update({
@@ -73,7 +82,7 @@ export function createMessageService(prisma: PrismaClient) {
         data: { updatedAt: new Date() }
       });
 
-      return message;
+      return serializeMessage(message);
     },
 
     async updateMessage(userId: string, messageId: string, input: UpdateMessageInput) {
@@ -94,9 +103,12 @@ export function createMessageService(prisma: PrismaClient) {
         data: {
           body: input.body ?? current.body,
           attachmentUrl: input.attachmentUrl ?? current.attachmentUrl,
+          attachmentName: input.attachmentName ?? (current as any).attachmentName,
+          attachmentMimeType: input.attachmentMimeType ?? (current as any).attachmentMimeType,
+          attachmentSize: input.attachmentSize ?? (current as any).attachmentSize,
           isEdited: true
-        },
-        select: messageSelect
+        } as any,
+        select: messageSelect as any
       });
 
       await prisma.conversation.update({
@@ -104,7 +116,7 @@ export function createMessageService(prisma: PrismaClient) {
         data: { updatedAt: new Date() }
       });
 
-      return message;
+      return serializeMessage(message);
     },
 
     async deleteMessage(userId: string, messageId: string) {
@@ -125,12 +137,15 @@ export function createMessageService(prisma: PrismaClient) {
         data: {
           body: null,
           attachmentUrl: null,
+          attachmentName: null,
+          attachmentMimeType: null,
+          attachmentSize: null,
           isDeleted: true
-        },
-        select: messageSelect
+        } as any,
+        select: messageSelect as any
       });
 
-      return message;
+      return serializeMessage(message);
     },
 
     async adminDeleteMessage(messageId: string) {
@@ -147,10 +162,13 @@ export function createMessageService(prisma: PrismaClient) {
         data: {
           body: null,
           attachmentUrl: null,
+          attachmentName: null,
+          attachmentMimeType: null,
+          attachmentSize: null,
           isDeleted: true
-        },
-        select: messageSelect
-      });
+        } as any,
+        select: messageSelect as any
+      }).then(serializeMessage);
     },
 
     async markRead(userId: string, messageId: string) {
@@ -182,10 +200,12 @@ export function createMessageService(prisma: PrismaClient) {
         }
       });
 
-      return prisma.message.findUniqueOrThrow({
+      const updatedMessage = await prisma.message.findUniqueOrThrow({
         where: { id: messageId },
-        select: messageSelect
+        select: messageSelect as any
       });
+
+      return serializeMessage(updatedMessage);
     }
   };
 }

@@ -8,6 +8,23 @@ export const CALL_TYPES = ["AUDIO", "VIDEO"] as const;
 export const CALL_STATUSES = ["RINGING", "ACCEPTED", "REJECTED", "MISSED", "ENDED"] as const;
 export const CALL_PARTICIPANT_STATUSES = ["INVITED", "JOINED", "LEFT", "REJECTED", "MISSED"] as const;
 
+export const COUNTRY_OPTIONS = [
+  { code: "RU", name: "Россия", dialCode: "+7" },
+  { code: "KZ", name: "Казахстан", dialCode: "+7" },
+  { code: "BY", name: "Беларусь", dialCode: "+375" },
+  { code: "UA", name: "Украина", dialCode: "+380" },
+  { code: "UZ", name: "Узбекистан", dialCode: "+998" },
+  { code: "KG", name: "Кыргызстан", dialCode: "+996" },
+  { code: "TJ", name: "Таджикистан", dialCode: "+992" },
+  { code: "AM", name: "Армения", dialCode: "+374" },
+  { code: "AZ", name: "Азербайджан", dialCode: "+994" },
+  { code: "GE", name: "Грузия", dialCode: "+995" },
+  { code: "DE", name: "Германия", dialCode: "+49" },
+  { code: "PL", name: "Польша", dialCode: "+48" },
+  { code: "FI", name: "Финляндия", dialCode: "+358" },
+  { code: "US", name: "США", dialCode: "+1" }
+] as const;
+
 export type UserRole = (typeof USER_ROLES)[number];
 export type UserStatus = (typeof USER_STATUSES)[number];
 export type ConversationType = (typeof CONVERSATION_TYPES)[number];
@@ -17,6 +34,7 @@ export type MessageDeliveryStatus = (typeof MESSAGE_DELIVERY_STATUSES)[number];
 export type CallType = (typeof CALL_TYPES)[number];
 export type CallStatus = (typeof CALL_STATUSES)[number];
 export type CallParticipantStatus = (typeof CALL_PARTICIPANT_STATUSES)[number];
+export type CountryOption = (typeof COUNTRY_OPTIONS)[number];
 
 export interface AuthTokens {
   accessToken: string;
@@ -36,12 +54,24 @@ export interface AdminDashboardStats {
   activeCalls: number;
 }
 
-export interface User {
+export interface DisplayNameSource {
+  fullName?: string | null;
+  displayName?: string | null;
+  name?: string | null;
+  username?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
+export interface User extends DisplayNameSource {
   id: string;
   phone: string | null;
   email: string | null;
   username: string;
+  fullName: string | null;
+  about: string | null;
   avatarUrl: string | null;
+  country: string | null;
   role: UserRole;
   status: UserStatus;
   lastSeenAt: string | Date | null;
@@ -71,6 +101,9 @@ export interface Message {
   type: MessageType;
   body: string | null;
   attachmentUrl: string | null;
+  attachmentName: string | null;
+  attachmentMimeType: string | null;
+  attachmentSize: number | null;
   replyToMessageId: string | null;
   isEdited: boolean;
   isDeleted: boolean;
@@ -80,7 +113,7 @@ export interface Message {
   statuses?: MessageStatus[];
 }
 
-export interface Conversation {
+export interface Conversation extends DisplayNameSource {
   id: string;
   type: ConversationType;
   title: string | null;
@@ -112,7 +145,15 @@ export interface Call {
   endedAt: string | Date | null;
   createdAt: string | Date;
   conversation?: Conversation;
+  createdBy?: User;
   participants?: CallParticipant[];
+}
+
+export interface UploadResult {
+  url: string;
+  mimeType: string;
+  size: number;
+  originalName: string;
 }
 
 export interface AuthResponse extends AuthTokens {
@@ -133,6 +174,9 @@ export interface SocketClientEvents {
     type?: MessageType;
     body?: string | null;
     attachmentUrl?: string | null;
+    attachmentName?: string | null;
+    attachmentMimeType?: string | null;
+    attachmentSize?: number | null;
     replyToMessageId?: string | null;
   };
   "message:read": {
@@ -191,4 +235,40 @@ export interface SocketServerEvents {
 export interface SocketEvents {
   client: SocketClientEvents;
   server: SocketServerEvents;
+}
+
+export function sanitizeText(input?: string | null): string | null {
+  if (typeof input !== "string") {
+    return null;
+  }
+
+  const value = input.trim();
+  if (!value || value === "null" || value === "undefined") {
+    return null;
+  }
+
+  return value;
+}
+
+export function getDisplayName(input: DisplayNameSource): string {
+  return (
+    sanitizeText(input.fullName) ??
+    sanitizeText(input.displayName) ??
+    sanitizeText(input.name) ??
+    sanitizeText(input.username) ??
+    sanitizeText(input.email) ??
+    sanitizeText(input.phone) ??
+    "Пользователь"
+  );
+}
+
+export function getAvatarFallback(input: DisplayNameSource): string {
+  const displayName = getDisplayName(input);
+  const parts = displayName
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("");
+  return initials || "PL";
 }

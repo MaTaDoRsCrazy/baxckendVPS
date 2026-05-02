@@ -16,7 +16,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     saveAuth(auth);
   }, [auth]);
 
-  const value = useMemo(
+  const value = useMemo<AuthContextValue>(
     () => ({
       auth,
       setAuth: setAuthState,
@@ -33,5 +33,6 @@ export function useAuth() {
   if (!value) {
     throw new Error("useAuth должен использоваться внутри AuthProvider");
   }
+
   return value;
 }

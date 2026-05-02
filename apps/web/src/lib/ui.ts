@@ -13,10 +13,22 @@ export function translateWebError(input?: string | null): string {
     "Call not found": "Звонок не найден",
     "User is not a conversation member": "У вас нет доступа к этому чату",
     "User is not a call participant": "У вас нет доступа к этому звонку",
-    "Cannot create a private chat with yourself": "Нельзя создать личный чат с самим собой"
+    "User is not allowed to join this call": "У вас нет доступа к этому звонку",
+    "Cannot create a private chat with yourself": "Нельзя создать личный чат с самим собой",
+    "User with provided username or email already exists": "Пользователь с таким именем или email уже существует",
+    "Unsupported file type": "Этот тип файла не поддерживается",
+    "File is required": "Выберите файл",
+    "File exceeds 15MB limit": "Файл превышает лимит 15 МБ",
+    "Multipart boundary is missing": "Не удалось обработать файл",
+    "Session not found": "Сессия не найдена",
+    "Refresh token expired": "Сессия истекла, войдите снова",
+    "Refresh token mismatch": "Сессия истекла, войдите снова",
+    "User is blocked": "Аккаунт заблокирован",
+    "User is deleted": "Аккаунт удалён",
+    "Insufficient permissions": "Недостаточно прав"
   };
 
-  return map[normalized] ?? "Что-то пошло не так";
+  return map[normalized] ?? normalized;
 }
 
 export function formatTimeRu(value: string | Date): string {
@@ -54,4 +66,20 @@ export function formatCallTypeRu(type?: string | null): string {
   if (type === "AUDIO") return "Аудиозвонок";
   if (type === "VIDEO") return "Видеозвонок";
   return "Звонок";
+}
+
+export function formatBytes(size?: number | null): string {
+  if (!size || size <= 0) {
+    return "0 Б";
+  }
+
+  const units = ["Б", "КБ", "МБ", "ГБ"];
+  let value = size;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value >= 10 || unitIndex === 0 ? Math.round(value) : value.toFixed(1)} ${units[unitIndex]}`;
 }

@@ -1,6 +1,6 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { logout as logoutRequest } from "../api/messenger";
 import { setApiAuth } from "../api/client";
+import { logout as logoutRequest } from "../api/messenger";
 import { useAuth } from "../providers/auth-provider";
 import { IncomingCallBanner } from "./incoming-call-banner";
 
@@ -13,7 +13,7 @@ export function AppShell() {
         await logoutRequest(auth.refreshToken);
       }
     } catch {
-      // Локально очищаем сессию даже если backend уже недоступен.
+      // Keep local logout even if backend is temporarily unavailable.
     } finally {
       setApiAuth(null);
       logout();

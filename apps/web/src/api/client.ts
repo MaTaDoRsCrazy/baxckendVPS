@@ -43,10 +43,15 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}, retry 
     headers.set("Authorization", `Bearer ${authCache.accessToken}`);
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers
+    });
+  } catch {
+    throw new Error(translateWebError("Network error"));
+  }
 
   if (response.status === 401 && retry && authCache?.refreshToken) {
     const nextAuth = await refreshAccessToken();

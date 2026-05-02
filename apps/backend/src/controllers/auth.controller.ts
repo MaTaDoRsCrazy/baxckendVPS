@@ -8,7 +8,8 @@ const registerSchema = z.object({
   username: z.string().trim().min(3),
   password: z.string().min(8),
   email: z.string().email().optional().nullable(),
-  phone: z.string().trim().min(5).optional().nullable()
+  phone: z.string().trim().min(5).optional().nullable(),
+  country: z.string().trim().min(2).max(64).optional().nullable()
 });
 
 const loginSchema = z.object({

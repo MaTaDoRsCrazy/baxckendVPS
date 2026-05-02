@@ -17,7 +17,6 @@ import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.emessenger.app.R
 import com.emessenger.app.core.design.PulseLineAvatar
 import com.emessenger.app.core.design.PulseLineEmptyState
+import com.emessenger.app.core.utils.displayTitle
 import com.emessenger.app.core.utils.formatDayDivider
 import com.emessenger.app.core.utils.formatPresence
 
@@ -69,9 +69,7 @@ fun ChatScreen(
         }
     }
 
-    val title = uiState.conversation?.title
-        ?: uiState.conversation?.members?.firstOrNull { it.userId != uiState.currentUserId }?.username
-        ?: stringResource(R.string.chats)
+    val title = uiState.conversation?.displayTitle(uiState.currentUserId) ?: stringResource(R.string.chats)
 
     Scaffold(
         topBar = {
@@ -117,7 +115,9 @@ fun ChatScreen(
                 onSend = {
                     viewModel.sendMessage(chatId, draft)
                     draft = ""
-                }
+                },
+                onSendAttachment = { uri -> viewModel.sendAttachment(chatId, uri) },
+                onSendVoice = { uri -> viewModel.sendVoice(chatId, uri) }
             )
         }
     ) { padding ->
@@ -174,7 +174,9 @@ fun ChatScreen(
                             MessageBubble(
                                 message = message,
                                 own = message.senderId == uiState.currentUserId,
-                                senderLabel = uiState.conversation?.members?.firstOrNull { it.userId == message.senderId }?.username ?: "PulseLine"
+                                senderLabel = message.sender?.displayName
+                                    ?: uiState.conversation?.members?.firstOrNull { it.userId == message.senderId }?.displayName
+                                    ?: "PulseLine"
                             )
                         }
                     }

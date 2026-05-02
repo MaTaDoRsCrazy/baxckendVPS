@@ -42,13 +42,30 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun register(username: String, email: String, phone: String, password: String) {
+    fun register(
+        username: String,
+        email: String,
+        phone: String,
+        password: String,
+        country: String,
+        agreementAccepted: Boolean,
+        captchaExpected: Int,
+        captchaAnswer: String
+    ) {
         if (username.isBlank()) {
             _uiState.value = AuthUiState.Error("Введите имя пользователя")
             return
         }
         if (password.isBlank()) {
             _uiState.value = AuthUiState.Error("Введите пароль")
+            return
+        }
+        if (!agreementAccepted) {
+            _uiState.value = AuthUiState.Error("Подтвердите согласие с правилами сервиса")
+            return
+        }
+        if (captchaAnswer.toIntOrNull() != captchaExpected) {
+            _uiState.value = AuthUiState.Error("Неверный ответ в проверке")
             return
         }
         viewModelScope.launch {
@@ -58,7 +75,8 @@ class AuthViewModel @Inject constructor(
                     username = username.trim(),
                     email = email.trim().ifBlank { null },
                     phone = phone.trim().ifBlank { null },
-                    password = password
+                    password = password,
+                    country = country.ifBlank { null }
                 )
             }.onSuccess {
                 _uiState.value = AuthUiState.Success

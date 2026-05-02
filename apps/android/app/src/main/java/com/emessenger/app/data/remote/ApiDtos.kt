@@ -5,6 +5,7 @@ import com.emessenger.app.domain.model.CallModel
 import com.emessenger.app.domain.model.ConversationModel
 import com.emessenger.app.domain.model.LiveKitTokenModel
 import com.emessenger.app.domain.model.MessageModel
+import com.emessenger.app.domain.model.UploadModel
 import com.emessenger.app.domain.model.UserModel
 
 data class ApiEnvelope<T>(
@@ -29,7 +30,8 @@ data class RegisterRequest(
     val username: String,
     val email: String?,
     val phone: String?,
-    val password: String
+    val password: String,
+    val country: String?
 )
 
 data class RefreshRequest(
@@ -39,7 +41,11 @@ data class RefreshRequest(
 data class CreateMessageRequest(
     val conversationId: String,
     val type: String = "TEXT",
-    val body: String?
+    val body: String? = null,
+    val attachmentUrl: String? = null,
+    val attachmentName: String? = null,
+    val attachmentMimeType: String? = null,
+    val attachmentSize: Int? = null
 )
 
 data class StartCallRequest(
@@ -55,3 +61,4 @@ typealias MessagesEnvelope = ApiEnvelope<List<MessageModel>>
 typealias CallEnvelope = ApiEnvelope<CallModel>
 typealias CallsEnvelope = ApiEnvelope<List<CallModel>>
 typealias LiveKitTokenEnvelope = LiveKitTokenModel
+typealias UploadEnvelope = ApiEnvelope<UploadModel>

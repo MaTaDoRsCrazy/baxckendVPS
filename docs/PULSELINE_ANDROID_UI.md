@@ -1,56 +1,52 @@
 # PulseLine Android UI
 
-## Концепция
+## Экранная модель
 
-PulseLine — современный mobile messenger UI с Telegram-inspired UX, но без копирования бренда, логотипов и ассетов Telegram. Основной визуальный язык:
+Приложение покрывает:
 
-- глубокий синий
-- фиолетово-синий акцент
-- cyan highlight
-- rounded premium surfaces
-- быстрый и чистый Compose UI
-
-## Экраны
-
-- `SplashScreen`
 - `LoginScreen`
 - `RegisterScreen`
 - `ChatsScreen`
 - `ChatScreen`
-- `ChatInfoScreen`
 - `ProfileScreen`
 - `EditProfileScreen`
-- `SettingsScreen`
 - `IncomingCallScreen`
 - `CallScreen`
 
-## Что уже реализовано
+## Что обновлено
 
-- PulseLine branding
-- новый splash с анимацией
-- русифицированный auth flow
-- обновлённый список чатов
-- новый экран диалога с bubble UI
-- профиль и редактирование профиля
-- экран настроек с темой и permission flow
-- аудио/видео call UI поверх backend + LiveKit token flow
-- сборка через Gradle wrapper подтверждена
+- единый display name fallback без `null`, `undefined` и `null null`
+- avatar fallback с инициалами или `PL`
+- регистрация на русском языке
+- выбор страны и ввод телефона с кодом страны
+- подтверждение соглашения и простая captcha
+- профиль с редактированием `fullName`, `username`, `email`, `phone`, `about`, `country`
+- загрузка аватара
+- вложения в сообщениях: изображение, файл, голос
+- запись голосовых через `MediaRecorder`
+- воспроизведение voice bubble
+- кнопки аудио/видеозвонка, mute и camera toggle
 
-## Что пока placeholder
+## Permissions
 
-- full remote video rendering в Compose
-- advanced reply / attachment / emoji workflows
-- swipe actions и pinned chat logic
-- полное realtime-отображение incoming call overlay из Socket.IO
-- расширенные privacy / devices controls
+Используются:
 
-## Проверка APK
+- `INTERNET`
+- `RECORD_AUDIO`
+- `CAMERA`
+- `POST_NOTIFICATIONS`
+
+Для debug/test сборки разрешён HTTP cleartext к `139.28.222.148`.
+
+## Ограничения текущего UI
+
+- remote video остаётся базовым и зависит от устройства/разрешений
+- полноценный foreground calling UX ещё можно доработать
+- входящий звонок через Socket.IO реализован на уровне flow, но не как системный telecom экран
+
+## Сборка
 
 ```bash
 cd apps/android
 gradlew.bat assembleDebug
 ```
-
-APK:
-
-- `apps/android/app/build/outputs/apk/debug/app-debug.apk`

@@ -1,4 +1,4 @@
-import type { ApiEnvelope, AuthResponse, Call, Conversation, Message, User } from "@emessenger/shared";
+import type { ApiEnvelope, AuthResponse, Call, Conversation, Message, UploadResult, User } from "@emessenger/shared";
 import { apiRequest } from "./client";
 
 export function login(identifier: string, password: string) {
@@ -8,7 +8,13 @@ export function login(identifier: string, password: string) {
   });
 }
 
-export function register(input: { username: string; email?: string; phone?: string; password: string }) {
+export function register(input: {
+  username: string;
+  email?: string;
+  phone?: string;
+  password: string;
+  country?: string;
+}) {
   return apiRequest<ApiEnvelope<AuthResponse>>("/auth/register", {
     method: "POST",
     body: JSON.stringify(input)
@@ -42,10 +48,30 @@ export function searchUsers(q: string) {
   return apiRequest<ApiEnvelope<User[]>>(`/users/search?q=${encodeURIComponent(q)}`);
 }
 
-export function updateProfile(input: Partial<Pick<User, "username" | "avatarUrl" | "email" | "phone">>) {
+export function updateProfile(
+  input: Partial<Pick<User, "fullName" | "username" | "avatarUrl" | "email" | "phone" | "about" | "country">>
+) {
   return apiRequest<ApiEnvelope<User>>("/users/me", {
     method: "PATCH",
     body: JSON.stringify(input)
+  });
+}
+
+export function uploadFile(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiRequest<ApiEnvelope<UploadResult>>("/uploads", {
+    method: "POST",
+    body: formData
+  });
+}
+
+export function uploadAvatar(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiRequest<ApiEnvelope<User>>("/users/me/avatar", {
+    method: "POST",
+    body: formData
   });
 }
 
@@ -68,6 +94,9 @@ export function createMessage(input: {
   type?: string;
   body?: string | null;
   attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentMimeType?: string | null;
+  attachmentSize?: number | null;
   replyToMessageId?: string | null;
 }) {
   return apiRequest<ApiEnvelope<Message>>("/messages", {

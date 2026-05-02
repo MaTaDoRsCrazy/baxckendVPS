@@ -1,12 +1,12 @@
-import type { RemoteTrackPublication, Room } from "livekit-client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Room, createLocalTracks, type LocalTrack, type RemoteTrack, type RemoteTrackPublication } from "livekit-client";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { endCall, getCallHistory, getCallToken } from "../api/messenger";
 import { formatCallTypeRu } from "../lib/ui";
 
-function attachPublication(publication: RemoteTrackPublication, container: HTMLDivElement | null) {
-  if (!container || !publication.track) return;
-  const element = publication.track.attach();
+function attachTrack(track: RemoteTrack | LocalTrack, container: HTMLDivElement | null) {
+  if (!container) return;
+  const element = track.attach();
   element.className = "h-full w-full rounded-3xl object-cover";
   container.innerHTML = "";
   container.appendChild(element);
@@ -20,69 +20,67 @@ export function CallPage() {
   const [room, setRoom] = useState<Room | null>(null);
   const [mode, setMode] = useState<"AUDIO" | "VIDEO">("AUDIO");
   const [status, setStatus] = useState("Подготавливаем комнату...");
-
-  const roomFactory = useMemo(async () => {
-    const livekit = await import("livekit-client");
-    return { room: new livekit.Room(), createLocalTracks: livekit.createLocalTracks };
-  }, []);
+  const [micEnabled, setMicEnabled] = useState(true);
+  const [cameraEnabled, setCameraEnabled] = useState(false);
 
   useEffect(() => {
     if (!callId) return;
 
-    let mounted = true;
     let currentRoom: Room | null = null;
+    let mounted = true;
 
     void (async () => {
-      const history = await getCallHistory();
-      const call = history.data.find((entry) => entry.id === callId);
-      if (call?.type === "VIDEO") {
-        setMode("VIDEO");
-      }
+      try {
+        const history = await getCallHistory();
+        const call = history.data.find((entry) => entry.id === callId);
+        const callMode = call?.type === "VIDEO" ? "VIDEO" : "AUDIO";
+        setMode(callMode);
+        setCameraEnabled(callMode === "VIDEO");
 
-      const token = await getCallToken(callId);
-      const { room: nextRoom, createLocalTracks } = await roomFactory;
-      currentRoom = nextRoom;
-      setRoom(nextRoom);
-      setStatus("Подключаемся к LiveKit...");
-      await nextRoom.connect(token.url, token.token);
+        const token = await getCallToken(callId);
+        const nextRoom = new Room();
+        currentRoom = nextRoom;
+        setRoom(nextRoom);
+        setStatus("Подключаемся к LiveKit...");
+        await nextRoom.connect(token.url, token.token);
 
-      const localTracks = await createLocalTracks({
-        audio: true,
-        video: mode === "VIDEO"
-      });
-
-      localTracks.forEach((track) => {
-        void nextRoom.localParticipant.publishTrack(track);
-        if (localContainerRef.current && (track.kind === "video" || mode === "AUDIO")) {
-          const element = track.attach();
-          element.className = "h-full w-full rounded-3xl object-cover";
-          localContainerRef.current.innerHTML = "";
-          localContainerRef.current.appendChild(element);
-        }
-      });
-
-      nextRoom.on("trackSubscribed", (track, _publication, participant) => {
-        if (!mounted || !remoteContainerRef.current) return;
-        const element = track.attach();
-        element.className = "h-full w-full rounded-3xl object-cover";
-        remoteContainerRef.current.innerHTML = "";
-        remoteContainerRef.current.appendChild(element);
-        setStatus(`Подключено: ${participant.identity}`);
-      });
-
-      nextRoom.on("participantConnected", (participant) => {
-        setStatus(`Подключился пользователь: ${participant.identity}`);
-        participant.trackPublications.forEach((publication) => {
-          attachPublication(publication as RemoteTrackPublication, remoteContainerRef.current);
+        const localTracks = await createLocalTracks({
+          audio: true,
+          video: callMode === "VIDEO"
         });
-      });
 
-      nextRoom.on("participantDisconnected", () => {
-        setStatus("Собеседник вышел");
-      });
+        for (const track of localTracks) {
+          await nextRoom.localParticipant.publishTrack(track);
+          if (track.kind === "video" || callMode === "AUDIO") {
+            attachTrack(track, localContainerRef.current);
+          }
+        }
 
-      if (mounted) {
-        setStatus("Соединение установлено");
+        nextRoom.on("trackSubscribed", (track) => {
+          if (!mounted) return;
+          attachTrack(track, remoteContainerRef.current);
+          setStatus("Соединение установлено");
+        });
+
+        nextRoom.on("participantConnected", (participant) => {
+          setStatus(`Подключился пользователь: ${participant.identity}`);
+          participant.trackPublications.forEach((publication) => {
+            const candidate = publication as RemoteTrackPublication;
+            if (candidate.track) {
+              attachTrack(candidate.track, remoteContainerRef.current);
+            }
+          });
+        });
+
+        nextRoom.on("participantDisconnected", () => {
+          setStatus("Собеседник вышел");
+        });
+
+        if (mounted) {
+          setStatus("Соединение установлено");
+        }
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : "Не удалось подключиться к звонку");
       }
     })();
 
@@ -90,7 +88,7 @@ export function CallPage() {
       mounted = false;
       currentRoom?.disconnect();
     };
-  }, [callId, mode, roomFactory]);
+  }, [callId]);
 
   async function leaveCall() {
     if (callId) {
@@ -98,6 +96,20 @@ export function CallPage() {
     }
     room?.disconnect();
     navigate("/chats");
+  }
+
+  async function toggleMicrophone() {
+    if (!room) return;
+    const nextValue = !micEnabled;
+    await room.localParticipant.setMicrophoneEnabled(nextValue);
+    setMicEnabled(nextValue);
+  }
+
+  async function toggleCamera() {
+    if (!room || mode !== "VIDEO") return;
+    const nextValue = !cameraEnabled;
+    await room.localParticipant.setCameraEnabled(nextValue);
+    setCameraEnabled(nextValue);
   }
 
   return (
@@ -129,6 +141,19 @@ export function CallPage() {
         </div>
       </section>
       <aside className="space-y-4">
+        <section className="surface p-5">
+          <h2 className="text-lg font-semibold text-ink">Управление</h2>
+          <div className="mt-4 grid gap-3">
+            <button className="secondary-btn w-full" onClick={() => void toggleMicrophone()}>
+              {micEnabled ? "Выключить микрофон" : "Включить микрофон"}
+            </button>
+            {mode === "VIDEO" ? (
+              <button className="secondary-btn w-full" onClick={() => void toggleCamera()}>
+                {cameraEnabled ? "Выключить камеру" : "Включить камеру"}
+              </button>
+            ) : null}
+          </div>
+        </section>
         <section className="surface p-5">
           <h2 className="text-lg font-semibold text-ink">О звонке</h2>
           <ul className="mt-3 space-y-2 text-sm text-muted">

@@ -1,42 +1,26 @@
-# EMESSENGER / PulseLine
+# eMessenger / PulseLine
 
-Полноценный monorepo для self-hosted backend мессенджера с браузерным клиентом, админкой и Android-приложением PulseLine. Звонки работают через LiveKit Cloud: VPS хранит только backend API, Socket.IO, PostgreSQL, админ-панель, web app и генерацию временных LiveKit token.
+Монорепозиторий self-hosted мессенджера с backend API, web-клиентом, админкой и Android-приложением PulseLine.
 
-## Состав проекта
+## Состав
 
-- `apps/backend` — Fastify + Prisma + PostgreSQL + Socket.IO + JWT + LiveKit token API
-- `apps/admin` — русифицированная админка на React/Vite/Tailwind
-- `apps/web` — русифицированный web messenger на React/Vite/Tailwind
-- `apps/android` — PulseLine на Kotlin + Compose + Hilt + Room + DataStore + LiveKit Android SDK
-- `packages/shared` — общие TypeScript-типы
-- `infra/` — Caddy, backup script, PostgreSQL infra
+- `apps/backend` - Fastify, Prisma, PostgreSQL, JWT, Socket.IO, LiveKit token API
+- `apps/web` - web messenger на React/Vite
+- `apps/admin` - админ-панель на React/Vite
+- `apps/android` - Android клиент PulseLine на Kotlin + Compose
+- `packages/shared` - общие типы, helper-функции displayName и avatar fallback
+- `infra` - Caddy и вспомогательная инфраструктура
 
-## Структура
+## Что покрыто в текущей версии
 
-```text
-emessenger/
-  apps/
-    admin/
-    android/
-    backend/
-    web/
-  backups/
-  docs/
-    ANDROID_API.md
-    DEPLOY.md
-    PULSELINE_ANDROID_UI.md
-    WEB_APP.md
-  infra/
-    caddy/
-    postgres/
-    scripts/
-  packages/
-    shared/
-  docker-compose.yml
-  .env.example
-  README.md
-  DEPLOY.md
-```
+- единый `displayName` fallback: `fullName/name -> username -> email -> phone -> "Пользователь"`
+- avatar fallback с инициалами или `PL`
+- профиль пользователя: `fullName`, `username`, `email`, `phone`, `about`, `avatarUrl`, `country`
+- загрузка файлов и аватаров через backend `/uploads`
+- вложения сообщений: `TEXT`, `IMAGE`, `FILE`, `VOICE`
+- голосовые сообщения в web и Android
+- регистрация с `username`, `email`, `password`, выбором страны, телефоном, согласием и простой captcha
+- LiveKit звонки через backend token flow без передачи секретов в web/Android
 
 ## Локальный запуск
 
@@ -44,56 +28,91 @@ emessenger/
 cp .env.example .env
 docker compose up -d postgres
 npm install
+npm run db:generate
 npm run db:migrate
-npm run db:seed
 npm run dev
 ```
 
 Локальные адреса:
 
-- Backend: `http://localhost:3000`
-- Admin: `http://localhost:5173`
-- Web app: `http://localhost:5174`
+- backend: `http://localhost:3000`
+- web: `http://localhost:5174`
+- admin: `http://localhost:5173`
 
-Android открывается отдельно в Android Studio из папки `apps/android`.
+Android собирается отдельно из `apps/android`.
 
 ## Production / VPS
 
+На VPS должны храниться только backend env и LiveKit secrets. Не добавляйте `LIVEKIT_API_SECRET` в web или Android.
+
+Обязательные env:
+
+- `DATABASE_URL`
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `JWT_ACCESS_SECRET`
+- `JWT_REFRESH_SECRET`
+- `LIVEKIT_URL`
+- `LIVEKIT_API_KEY`
+- `LIVEKIT_API_SECRET`
+- `ADMIN_EMAIL`
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+- `UPLOADS_DIR=/uploads`
+- `MAX_UPLOAD_SIZE_MB=15`
+
+Если backend, web и admin уже работают на VPS, после `git pull` достаточно выполнить:
+
 ```bash
-git clone <repo-url> emessenger
-cd emessenger
-cp .env.example .env
-docker compose up -d --build
+cd /opt/emessenger
+docker compose up -d --build backend web admin caddy
 docker compose exec backend npm run db:migrate
-docker compose exec backend npm run db:seed
 ```
 
-Проверка после запуска:
+## LiveKit Cloud
 
-```bash
-curl http://SERVER_IP/api/health
+1. Создайте проект в LiveKit Cloud.
+2. Скопируйте `WebSocket URL`, `API Key` и `API Secret`.
+3. Запишите их только в `.env` на VPS как:
+
+```env
+LIVEKIT_URL=wss://your-project.livekit.cloud
+LIVEKIT_API_KEY=lk_...
+LIVEKIT_API_SECRET=...
 ```
 
-Маршруты по IP:
+4. Не добавляйте эти значения в `apps/web`, `apps/android` или публичные `.env`.
+5. Web и Android получают только временный токен через `POST /api/calls/:callId/token`.
 
-- `http://SERVER_IP/` — web app
-- `http://SERVER_IP/admin` — админка
-- `http://SERVER_IP/api/health` — backend
-
-## Android APK
+## Android сборка
 
 ```bash
 cd apps/android
 gradlew.bat assembleDebug
 ```
 
-APK появится в:
+APK:
 
 - `apps/android/app/build/outputs/apk/debug/app-debug.apk`
 
-## Важные замечания
+## Smoke test
 
-- `LIVEKIT_API_SECRET` хранится только на backend/VPS.
-- Android и web получают только временный токен через `POST /api/calls/:callId/token`.
-- PostgreSQL не публикуется наружу и работает только внутри Docker network.
-- Для резервных копий используйте `infra/scripts/backup-postgres.sh`.
+После деплоя проверьте:
+
+1. Регистрация в web.
+2. Логин в web и переход на `/chats`.
+3. Обновление профиля и загрузка аватара.
+4. Отправка текстового сообщения.
+5. Отправка изображения и файла.
+6. Отправка голосового сообщения.
+7. Аудиозвонок.
+8. Видеозвонок.
+
+Подробности по деплою и контрактам:
+
+- `DEPLOY.md`
+- `docs/WEB_APP.md`
+- `docs/ANDROID_API.md`
+- `docs/PULSELINE_ANDROID_UI.md`
+- `apps/android/README.md`

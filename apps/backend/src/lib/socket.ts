@@ -12,6 +12,9 @@ const sendMessageSchema = z.object({
   type: z.enum(["TEXT", "IMAGE", "FILE", "VOICE", "SYSTEM"]).default("TEXT"),
   body: z.string().trim().min(1).optional().nullable(),
   attachmentUrl: z.string().url().optional().nullable(),
+  attachmentName: z.string().trim().min(1).max(255).optional().nullable(),
+  attachmentMimeType: z.string().trim().min(1).max(255).optional().nullable(),
+  attachmentSize: z.number().int().positive().optional().nullable(),
   replyToMessageId: z.string().optional().nullable()
 });
 
@@ -116,14 +119,14 @@ export class RealtimeGateway {
     }
 
     socket.on("message:send", async (payload: unknown) => {
-      const parsed = sendMessageSchema.parse(payload);
-      const message = await this.services.messageService.createMessage(userId, parsed);
+      const parsed = sendMessageSchema.parse(payload) as any;
+      const message: any = await this.services.messageService.createMessage(userId, parsed);
       this.emitToConversation(parsed.conversationId, "message:new", message);
     });
 
     socket.on("message:read", async (payload: unknown) => {
-      const parsed = messageReadSchema.parse(payload);
-      const message = await this.services.messageService.markRead(userId, parsed.messageId);
+      const parsed = messageReadSchema.parse(payload) as { messageId: string };
+      const message: any = await this.services.messageService.markRead(userId, parsed.messageId);
       this.emitToConversation(message.conversationId, "message:read", {
         messageId: message.id,
         conversationId: message.conversationId,
@@ -132,7 +135,7 @@ export class RealtimeGateway {
     });
 
     socket.on("typing:start", async (payload: unknown) => {
-      const parsed = typingSchema.parse(payload);
+      const parsed = typingSchema.parse(payload) as { conversationId: string };
       await this.services.chatService.assertConversationMember(parsed.conversationId, userId);
       socket.to(this.getConversationRoom(parsed.conversationId)).emit("typing:start", {
         conversationId: parsed.conversationId,
@@ -141,7 +144,7 @@ export class RealtimeGateway {
     });
 
     socket.on("typing:stop", async (payload: unknown) => {
-      const parsed = typingSchema.parse(payload);
+      const parsed = typingSchema.parse(payload) as { conversationId: string };
       await this.services.chatService.assertConversationMember(parsed.conversationId, userId);
       socket.to(this.getConversationRoom(parsed.conversationId)).emit("typing:stop", {
         conversationId: parsed.conversationId,
@@ -150,25 +153,25 @@ export class RealtimeGateway {
     });
 
     socket.on("call:start", async (payload: unknown) => {
-      const parsed = startCallSchema.parse(payload);
+      const parsed = startCallSchema.parse(payload) as { conversationId: string; type: "AUDIO" | "VIDEO" };
       const call = await this.services.callService.startCall(userId, parsed);
       socket.to(this.getConversationRoom(parsed.conversationId)).emit("call:incoming", call);
     });
 
     socket.on("call:accept", async (payload: unknown) => {
-      const parsed = callActionSchema.parse(payload);
+      const parsed = callActionSchema.parse(payload) as { callId: string };
       const call = await this.services.callService.acceptCall(userId, parsed.callId);
       this.emitToConversation(call.conversationId, "call:accepted", call);
     });
 
     socket.on("call:reject", async (payload: unknown) => {
-      const parsed = callActionSchema.parse(payload);
+      const parsed = callActionSchema.parse(payload) as { callId: string };
       const call = await this.services.callService.rejectCall(userId, parsed.callId);
       this.emitToConversation(call.conversationId, "call:rejected", call);
     });
 
     socket.on("call:end", async (payload: unknown) => {
-      const parsed = callActionSchema.parse(payload);
+      const parsed = callActionSchema.parse(payload) as { callId: string };
       const call = await this.services.callService.endCall(userId, parsed.callId);
       this.emitToConversation(call.conversationId, "call:ended", call);
     });

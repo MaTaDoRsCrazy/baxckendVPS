@@ -12,3 +12,6 @@ apps/backend/prisma/dev.db
 build
 local.properties
 *.iml
+
+apps/android/.idea/
+apps/android/.gradle-local/

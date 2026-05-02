@@ -1,10 +1,4 @@
-import type {
-  Call,
-  Conversation,
-  Message,
-  SocketClientEvents,
-  SocketServerEvents
-} from "@emessenger/shared";
+import type { Call, Conversation, Message } from "@emessenger/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";

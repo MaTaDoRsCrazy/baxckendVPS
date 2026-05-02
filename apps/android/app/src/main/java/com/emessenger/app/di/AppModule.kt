@@ -24,6 +24,7 @@ import javax.inject.Singleton
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.converter.moshi.MoshiConverterFactory
 
 @Module
@@ -49,6 +50,7 @@ object NetworkModule {
         Retrofit.Builder()
             .baseUrl(BuildConfig.API_BASE_URL)
             .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
 
@@ -63,7 +65,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): MessengerDatabase =
-        Room.databaseBuilder(context, MessengerDatabase::class.java, "emessenger.db").build()
+        Room.databaseBuilder(context, MessengerDatabase::class.java, "emessenger.db")
+            .fallbackToDestructiveMigration()
+            .build()
 
     @Provides
     fun provideMessageDao(database: MessengerDatabase): MessageDao = database.messageDao()

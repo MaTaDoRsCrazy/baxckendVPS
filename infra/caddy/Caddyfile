@@ -3,7 +3,7 @@
 }
 
 (backend_routes) {
-  @backend path /api/* /socket.io/*
+  @backend path /api/* /socket.io/* /uploads/*
   handle @backend {
     reverse_proxy backend:3000
   }

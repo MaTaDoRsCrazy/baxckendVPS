@@ -81,8 +81,8 @@ export function buildAdminController(
 
     deleteMessage: async (request: any, reply: any) => {
       const auth = requireRoles(request, env, [...allowedRoles]);
-      const params = messageParamsSchema.parse(request.params);
-      const data = await services.messageService.adminDeleteMessage(params.messageId);
+      const params = messageParamsSchema.parse(request.params) as { messageId: string };
+      const data: any = await services.messageService.adminDeleteMessage(params.messageId);
       gateway.emitToConversation(data.conversationId, "message:deleted", data);
       await log(auth.userId, "admin.message.delete", "message", params.messageId, null, request.ip);
       return reply.send({ data });

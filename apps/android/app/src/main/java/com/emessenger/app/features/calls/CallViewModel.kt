@@ -3,6 +3,7 @@ package com.emessenger.app.features.calls
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.emessenger.app.core.livekit.LiveKitController
+import com.emessenger.app.core.utils.displayNameOrFallback
 import com.emessenger.app.core.utils.formatCallType
 import com.emessenger.app.core.utils.translateError
 import com.emessenger.app.domain.repository.CallRepository
@@ -45,13 +46,14 @@ class CallViewModel @Inject constructor(
                 val token = callRepository.getToken(callId)
                 val isVideo = historyCall?.type == "VIDEO"
                 liveKitController.connect(token.url, token.token, audio = true, video = isVideo)
-                Triple(historyCall?.type ?: "AUDIO", token.roomName, isVideo)
-            }.onSuccess { (type, roomName, _) ->
+                Triple(historyCall, token.roomName, isVideo)
+            }.onSuccess { (call, roomName, _) ->
                 _uiState.value = _uiState.value.copy(
                     callId = callId,
-                    callType = type,
+                    callType = call?.type ?: "AUDIO",
+                    callerName = call?.createdBy?.displayNameOrFallback() ?: "PulseLine",
                     livekitRoomName = roomName,
-                    status = formatCallType(type),
+                    status = formatCallType(call?.type ?: "AUDIO"),
                     connected = true,
                     loading = false,
                     startedAtMillis = System.currentTimeMillis()

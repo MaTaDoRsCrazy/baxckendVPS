@@ -1,17 +1,18 @@
 import type { PrismaClient } from "@prisma/client";
 import { CallParticipantStatus, CallStatus } from "@prisma/client";
+import { getDisplayName } from "@emessenger/shared";
 import type { AppEnv } from "../config/env.js";
 import { forbidden, notFound } from "../lib/errors.js";
 import { createLiveKitAccess } from "../lib/livekit.js";
-import { callParticipantSelect } from "../lib/serializers.js";
+import { callParticipantSelect, publicUserSelect, serializeCall } from "../lib/serializers.js";
 
 interface StartCallInput {
   conversationId: string;
   type: "AUDIO" | "VIDEO";
 }
 
-function buildRoomName(conversationId: string, callId: string) {
-  return `conv_${conversationId}_${callId}`;
+function buildRoomName(callId: string) {
+  return `call_${callId}`;
 }
 
 async function assertCallParticipant(prisma: PrismaClient, callId: string, userId: string) {
@@ -65,7 +66,7 @@ export function createCallService(prisma: PrismaClient, env: AppEnv) {
         }
       });
 
-      const roomName = buildRoomName(input.conversationId, call.id);
+      const roomName = buildRoomName(call.id);
 
       await prisma.call.update({
         where: { id: call.id },
@@ -88,15 +89,20 @@ export function createCallService(prisma: PrismaClient, env: AppEnv) {
         data: { updatedAt: new Date() }
       });
 
-      return prisma.call.findUniqueOrThrow({
+      const fullCall = await prisma.call.findUniqueOrThrow({
         where: { id: call.id },
         include: {
           participants: {
             select: callParticipantSelect
           },
-          conversation: true
+          conversation: true,
+          createdBy: {
+            select: publicUserSelect
+          }
         }
       });
+
+      return serializeCall(fullCall);
     },
 
     async acceptCall(userId: string, callId: string) {
@@ -123,15 +129,20 @@ export function createCallService(prisma: PrismaClient, env: AppEnv) {
         }
       });
 
-      return prisma.call.findUniqueOrThrow({
+      const fullCall = await prisma.call.findUniqueOrThrow({
         where: { id: callId },
         include: {
           participants: {
             select: callParticipantSelect
           },
-          conversation: true
+          conversation: true,
+          createdBy: {
+            select: publicUserSelect
+          }
         }
       });
+
+      return serializeCall(fullCall);
     },
 
     async rejectCall(userId: string, callId: string) {
@@ -164,15 +175,20 @@ export function createCallService(prisma: PrismaClient, env: AppEnv) {
         });
       }
 
-      return prisma.call.findUniqueOrThrow({
+      const fullCall = await prisma.call.findUniqueOrThrow({
         where: { id: callId },
         include: {
           participants: {
             select: callParticipantSelect
           },
-          conversation: true
+          conversation: true,
+          createdBy: {
+            select: publicUserSelect
+          }
         }
       });
+
+      return serializeCall(fullCall);
     },
 
     async endCall(userId: string, callId: string) {
@@ -199,15 +215,20 @@ export function createCallService(prisma: PrismaClient, env: AppEnv) {
         }
       });
 
-      return prisma.call.findUniqueOrThrow({
+      const fullCall = await prisma.call.findUniqueOrThrow({
         where: { id: callId },
         include: {
           participants: {
             select: callParticipantSelect
           },
-          conversation: true
+          conversation: true,
+          createdBy: {
+            select: publicUserSelect
+          }
         }
       });
+
+      return serializeCall(fullCall);
     },
 
     async createJoinToken(userId: string, callId: string) {
@@ -228,17 +249,14 @@ export function createCallService(prisma: PrismaClient, env: AppEnv) {
 
       const user = await prisma.user.findUniqueOrThrow({
         where: { id: userId },
-        select: {
-          id: true,
-          username: true
-        }
+        select: publicUserSelect
       });
 
       const token = await createLiveKitAccess(env, {
         identity: user.id,
-        displayName: user.username,
+        displayName: getDisplayName(user),
         roomName: call.livekitRoomName,
-        ttlSeconds: 600
+        ttlSeconds: 1800
       });
 
       return {
@@ -249,7 +267,7 @@ export function createCallService(prisma: PrismaClient, env: AppEnv) {
     },
 
     async getHistory(userId: string) {
-      return prisma.call.findMany({
+      const calls = await prisma.call.findMany({
         where: {
           participants: {
             some: {
@@ -260,11 +278,16 @@ export function createCallService(prisma: PrismaClient, env: AppEnv) {
         orderBy: { createdAt: "desc" },
         include: {
           conversation: true,
+          createdBy: {
+            select: publicUserSelect
+          },
           participants: {
             select: callParticipantSelect
           }
         }
       });
+
+      return calls.map(serializeCall);
     }
   };
 }

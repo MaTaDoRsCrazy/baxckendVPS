@@ -13,10 +13,14 @@ import com.emessenger.app.data.remote.MessagesEnvelope
 import com.emessenger.app.data.remote.RefreshRequest
 import com.emessenger.app.data.remote.RegisterRequest
 import com.emessenger.app.data.remote.StartCallRequest
+import com.emessenger.app.data.remote.UploadEnvelope
 import com.emessenger.app.data.remote.UserEnvelope
+import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.PATCH
+import retrofit2.http.Part
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -48,6 +52,14 @@ interface MessengerApi {
 
     @PATCH("api/users/me")
     suspend fun updateMe(@Body input: Map<String, @JvmSuppressWildcards Any?>): UserEnvelope
+
+    @Multipart
+    @POST("api/users/me/avatar")
+    suspend fun uploadAvatar(@Part file: MultipartBody.Part): UserEnvelope
+
+    @Multipart
+    @POST("api/uploads")
+    suspend fun uploadFile(@Part file: MultipartBody.Part): UploadEnvelope
 
     @POST("api/messages")
     suspend fun sendMessage(@Body request: CreateMessageRequest): ApiEnvelope<com.emessenger.app.domain.model.MessageModel>

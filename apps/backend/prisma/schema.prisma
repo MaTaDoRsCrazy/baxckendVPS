@@ -71,6 +71,9 @@ model User {
   phone                 String?
   email                 String?              @unique
   username              String               @unique
+  fullName              String?
+  about                 String?
+  country               String?
   passwordHash          String
   avatarUrl             String?
   role                  UserRole             @default(USER)
@@ -136,6 +139,9 @@ model Message {
   type             MessageType     @default(TEXT)
   body             String?
   attachmentUrl    String?
+  attachmentName   String?
+  attachmentMimeType String?
+  attachmentSize   Int?
   replyToMessageId String?
   isEdited         Boolean         @default(false)
   isDeleted        Boolean         @default(false)

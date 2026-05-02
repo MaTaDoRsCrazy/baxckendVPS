@@ -1,5 +1,6 @@
 package com.emessenger.app.features.chat
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.emessenger.app.core.datastore.SessionStore
@@ -91,6 +92,20 @@ class ChatViewModel @Inject constructor(
                     socketManager.emit("typing:stop", mapOf("conversationId" to chatId))
                     _uiState.value = _uiState.value.copy(typing = false)
                 }
+                .onFailure { _uiState.value = _uiState.value.copy(error = translateError(it.message)) }
+        }
+    }
+
+    fun sendAttachment(chatId: String, uri: Uri) {
+        viewModelScope.launch {
+            runCatching { chatRepository.sendAttachment(chatId, uri) }
+                .onFailure { _uiState.value = _uiState.value.copy(error = translateError(it.message)) }
+        }
+    }
+
+    fun sendVoice(chatId: String, uri: Uri) {
+        viewModelScope.launch {
+            runCatching { chatRepository.sendVoice(chatId, uri) }
                 .onFailure { _uiState.value = _uiState.value.copy(error = translateError(it.message)) }
         }
     }

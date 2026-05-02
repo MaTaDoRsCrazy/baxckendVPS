@@ -29,9 +29,13 @@ class SessionStore @Inject constructor(
         val refreshToken = stringPreferencesKey("refresh_token")
         val userId = stringPreferencesKey("user_id")
         val username = stringPreferencesKey("username")
+        val fullName = stringPreferencesKey("full_name")
+        val displayName = stringPreferencesKey("display_name")
         val email = stringPreferencesKey("email")
         val phone = stringPreferencesKey("phone")
+        val about = stringPreferencesKey("about")
         val avatar = stringPreferencesKey("avatar")
+        val country = stringPreferencesKey("country")
         val role = stringPreferencesKey("role")
         val status = stringPreferencesKey("status")
         val themeMode = stringPreferencesKey("theme_mode")
@@ -61,9 +65,13 @@ class SessionStore @Inject constructor(
             preferences[Keys.refreshToken] = session.refreshToken
             preferences[Keys.userId] = session.user.id
             preferences[Keys.username] = session.user.username
+            preferences[Keys.fullName] = session.user.fullName.orEmpty()
+            preferences[Keys.displayName] = session.user.displayName
             preferences[Keys.email] = session.user.email.orEmpty()
             preferences[Keys.phone] = session.user.phone.orEmpty()
+            preferences[Keys.about] = session.user.about.orEmpty()
             preferences[Keys.avatar] = session.user.avatarUrl.orEmpty()
+            preferences[Keys.country] = session.user.country.orEmpty()
             preferences[Keys.role] = session.user.role
             preferences[Keys.status] = session.user.status
         }
@@ -91,9 +99,13 @@ class SessionStore @Inject constructor(
             user = com.emessenger.app.domain.model.UserModel(
                 id = this[Keys.userId].orEmpty(),
                 username = this[Keys.username].orEmpty(),
+                fullName = this[Keys.fullName]?.ifBlank { null },
+                displayName = this[Keys.displayName] ?: this[Keys.username].orEmpty(),
                 email = this[Keys.email]?.ifBlank { null },
                 phone = this[Keys.phone]?.ifBlank { null },
+                about = this[Keys.about]?.ifBlank { null },
                 avatarUrl = this[Keys.avatar]?.ifBlank { null },
+                country = this[Keys.country]?.ifBlank { null },
                 role = this[Keys.role].orEmpty(),
                 status = this[Keys.status].orEmpty()
             )

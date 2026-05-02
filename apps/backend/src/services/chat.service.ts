@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { ConversationType } from "@prisma/client";
 import { badRequest, forbidden, notFound } from "../lib/errors.js";
-import { conversationMemberSelect, messageSelect } from "../lib/serializers.js";
+import { conversationMemberSelect, messageSelect, serializeConversation, serializeMessage } from "../lib/serializers.js";
 
 async function assertConversationMember(prisma: PrismaClient, conversationId: string, userId: string) {
   const membership = await prisma.conversationMember.findUnique({
@@ -48,7 +48,7 @@ export function createChatService(prisma: PrismaClient) {
         }
       });
 
-      return memberships.map((membership) => membership.conversation);
+      return memberships.map((membership) => serializeConversation(membership.conversation));
     },
 
     async createPrivate(userId: string, participantId: string) {
@@ -74,7 +74,7 @@ export function createChatService(prisma: PrismaClient) {
       });
 
       if (matched) {
-        return prisma.conversation.findUniqueOrThrow({
+        const conversation = await prisma.conversation.findUniqueOrThrow({
           where: { id: matched.id },
           include: {
             members: {
@@ -83,9 +83,11 @@ export function createChatService(prisma: PrismaClient) {
             }
           }
         });
+
+        return serializeConversation(conversation);
       }
 
-      return prisma.conversation.create({
+      const conversation = await prisma.conversation.create({
         data: {
           type: ConversationType.PRIVATE,
           createdById: userId,
@@ -105,6 +107,8 @@ export function createChatService(prisma: PrismaClient) {
           }
         }
       });
+
+      return serializeConversation(conversation);
     },
 
     async createGroup(userId: string, title: string, memberIds: string[]) {
@@ -113,7 +117,7 @@ export function createChatService(prisma: PrismaClient) {
         throw badRequest("Group chat requires at least two members");
       }
 
-      return prisma.conversation.create({
+      const conversation = await prisma.conversation.create({
         data: {
           type: ConversationType.GROUP,
           title,
@@ -134,6 +138,8 @@ export function createChatService(prisma: PrismaClient) {
           }
         }
       });
+
+      return serializeConversation(conversation);
     },
 
     async getConversation(userId: string, conversationId: string) {
@@ -158,10 +164,10 @@ export function createChatService(prisma: PrismaClient) {
         throw notFound("Conversation not found");
       }
 
-      return {
+      return serializeConversation({
         ...conversation,
         messages: [...conversation.messages].reverse()
-      };
+      });
     },
 
     async getMessages(userId: string, conversationId: string, limit = 50) {
@@ -174,7 +180,7 @@ export function createChatService(prisma: PrismaClient) {
         select: messageSelect
       });
 
-      return [...messages].reverse();
+      return [...messages].reverse().map(serializeMessage);
     },
 
     assertConversationMember: (conversationId: string, userId: string) =>

@@ -1,4 +1,4 @@
-import type { PrismaClient, User } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 import { UserStatus } from "@prisma/client";
 import type { AppEnv } from "../config/env.js";
 import { conflict, unauthorized } from "../lib/errors.js";
@@ -9,7 +9,7 @@ import {
   toDateFromDuration,
   verifyRefreshToken
 } from "../lib/jwt.js";
-import { publicUserSelect } from "../lib/serializers.js";
+import { publicUserSelect, serializeUser } from "../lib/serializers.js";
 
 interface SessionMeta {
   userAgent?: string | null;
@@ -21,6 +21,7 @@ interface RegisterInput {
   password: string;
   email?: string | null;
   phone?: string | null;
+  country?: string | null;
 }
 
 interface LoginInput {
@@ -28,7 +29,7 @@ interface LoginInput {
   password: string;
 }
 
-function assertActiveUser(user: Pick<User, "status">) {
+function assertActiveUser(user: { status: UserStatus }) {
   if (user.status === UserStatus.BLOCKED) {
     throw unauthorized("User is blocked");
   }
@@ -39,7 +40,7 @@ function assertActiveUser(user: Pick<User, "status">) {
 }
 
 export function createAuthService(prisma: PrismaClient, env: AppEnv) {
-  async function issueSession(user: Pick<User, "id" | "role">, meta: SessionMeta) {
+  async function issueSession(user: any, meta: SessionMeta) {
     const session = await prisma.session.create({
       data: {
         userId: user.id,
@@ -89,47 +90,37 @@ export function createAuthService(prisma: PrismaClient, env: AppEnv) {
         throw conflict("User with provided username or email already exists");
       }
 
-      const user = await prisma.user.create({
+      const user: any = await prisma.user.create({
         data: {
           username: input.username,
           email: input.email ?? null,
           phone: input.phone ?? null,
+          country: input.country ?? null,
           passwordHash: await hashValue(input.password)
-        },
+        } as any,
         select: {
           ...publicUserSelect,
           passwordHash: true
-        }
+        } as any
       });
 
       const tokens = await issueSession(user, meta);
 
       return {
-        user: {
-          id: user.id,
-          phone: user.phone,
-          email: user.email,
-          username: user.username,
-          avatarUrl: user.avatarUrl,
-          role: user.role,
-          status: user.status,
-          lastSeenAt: user.lastSeenAt,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt
-        },
+        user: serializeUser(user),
         ...tokens
       };
     },
 
     async login(input: LoginInput, meta: SessionMeta) {
-      const user = await prisma.user.findFirst({
+      const user: any = await prisma.user.findFirst({
         where: {
           OR: [{ email: input.identifier }, { username: input.identifier }]
         },
         select: {
           ...publicUserSelect,
           passwordHash: true
-        }
+        } as any
       });
 
       if (!user || !(await verifyValue(user.passwordHash, input.password))) {
@@ -146,18 +137,10 @@ export function createAuthService(prisma: PrismaClient, env: AppEnv) {
       const tokens = await issueSession(user, meta);
 
       return {
-        user: {
-          id: user.id,
-          phone: user.phone,
-          email: user.email,
-          username: user.username,
-          avatarUrl: user.avatarUrl,
-          role: user.role,
-          status: user.status,
-          lastSeenAt: new Date(),
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt
-        },
+        user: serializeUser({
+          ...user,
+          lastSeenAt: new Date()
+        }),
         ...tokens
       };
     },
@@ -206,13 +189,13 @@ export function createAuthService(prisma: PrismaClient, env: AppEnv) {
         }
       });
 
-      const user = await prisma.user.findUniqueOrThrow({
+      const user: any = await prisma.user.findUniqueOrThrow({
         where: { id: session.userId },
-        select: publicUserSelect
+        select: publicUserSelect as any
       });
 
       return {
-        user,
+        user: serializeUser(user),
         accessToken,
         refreshToken: nextRefreshToken
       };
@@ -231,10 +214,12 @@ export function createAuthService(prisma: PrismaClient, env: AppEnv) {
     },
 
     async getMe(userId: string) {
-      return prisma.user.findUniqueOrThrow({
+      const user: any = await prisma.user.findUniqueOrThrow({
         where: { id: userId },
-        select: publicUserSelect
+        select: publicUserSelect as any
       });
+
+      return serializeUser(user);
     }
   };
 }

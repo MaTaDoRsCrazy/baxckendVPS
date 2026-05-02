@@ -5,6 +5,7 @@ import { buildAuthController } from "../controllers/auth.controller.js";
 import { buildCallsController } from "../controllers/calls.controller.js";
 import { buildChatsController } from "../controllers/chats.controller.js";
 import { buildMessagesController } from "../controllers/messages.controller.js";
+import { buildUploadsController } from "../controllers/uploads.controller.js";
 import { buildUsersController } from "../controllers/users.controller.js";
 import type { createAuditLogger } from "../lib/audit.js";
 import type { RealtimeGateway } from "../lib/socket.js";
@@ -22,6 +23,7 @@ export async function registerApiRoutes(
   const chats = buildChatsController(services, env);
   const messages = buildMessagesController(services, env, gateway);
   const calls = buildCallsController(services, env, gateway);
+  const uploads = buildUploadsController(services, env);
   const admin = buildAdminController(services, env, auditLogger, gateway);
 
   app.get("/health", async () => ({
@@ -53,7 +55,9 @@ export async function registerApiRoutes(
 
   app.get("/users/me", users.me);
   app.patch("/users/me", users.updateMe);
+  app.post("/users/me/avatar", users.updateAvatar);
   app.get("/users/search", users.search);
+  app.post("/uploads", uploads.create);
 
   app.get("/chats", chats.list);
   app.post("/chats/private", chats.createPrivate);

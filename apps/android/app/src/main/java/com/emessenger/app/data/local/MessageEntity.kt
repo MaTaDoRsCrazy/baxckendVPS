@@ -11,6 +11,10 @@ data class MessageEntity(
     val senderId: String,
     val body: String?,
     val type: String,
+    val attachmentUrl: String?,
+    val attachmentName: String?,
+    val attachmentMimeType: String?,
+    val attachmentSize: Int?,
     val createdAt: String,
     val isEdited: Boolean,
     val isDeleted: Boolean
@@ -21,6 +25,10 @@ data class MessageEntity(
         senderId = senderId,
         body = body,
         type = type,
+        attachmentUrl = attachmentUrl,
+        attachmentName = attachmentName,
+        attachmentMimeType = attachmentMimeType,
+        attachmentSize = attachmentSize,
         createdAt = createdAt,
         isEdited = isEdited,
         isDeleted = isDeleted
@@ -33,6 +41,10 @@ fun MessageModel.toEntity() = MessageEntity(
     senderId = senderId,
     body = body,
     type = type,
+    attachmentUrl = attachmentUrl,
+    attachmentName = attachmentName,
+    attachmentMimeType = attachmentMimeType,
+    attachmentSize = attachmentSize,
     createdAt = createdAt,
     isEdited = isEdited,
     isDeleted = isDeleted

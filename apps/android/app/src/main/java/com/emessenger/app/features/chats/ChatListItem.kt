@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -18,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.emessenger.app.R
 import com.emessenger.app.core.design.PulseLineAvatar
 import com.emessenger.app.core.design.PulseLineListRow
+import com.emessenger.app.core.utils.displayTitle
 import com.emessenger.app.core.utils.formatMessageTime
 import com.emessenger.app.domain.model.ConversationModel
 
@@ -26,9 +26,16 @@ fun ChatListItem(
     chat: ConversationModel,
     onClick: () -> Unit
 ) {
-    val title = chat.title ?: chat.members.joinToString(", ") { it.username }.ifBlank { stringResource(R.string.new_chat) }
+    val title = chat.displayTitle().ifBlank { stringResource(R.string.new_chat) }
     val lastMessage = chat.messages.lastOrNull()
-    val subtitle = lastMessage?.body ?: stringResource(R.string.start_chat)
+    val subtitle = when {
+        lastMessage == null -> stringResource(R.string.start_chat)
+        lastMessage.isDeleted -> stringResource(R.string.message_deleted)
+        lastMessage.type == "IMAGE" -> "Изображение"
+        lastMessage.type == "VOICE" -> "Голосовое сообщение"
+        lastMessage.type == "FILE" -> lastMessage.attachmentName ?: "Файл"
+        else -> lastMessage.body ?: stringResource(R.string.start_chat)
+    }
 
     PulseLineListRow(
         onClick = onClick,

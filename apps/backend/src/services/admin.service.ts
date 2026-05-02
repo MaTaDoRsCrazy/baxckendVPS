@@ -1,5 +1,5 @@
 import type { PrismaClient, UserStatus } from "@prisma/client";
-import { publicUserSelect } from "../lib/serializers.js";
+import { callParticipantSelect, publicUserSelect, serializeCall, serializeMessage, serializeUser } from "../lib/serializers.js";
 
 export function createAdminService(prisma: PrismaClient) {
   return {
@@ -24,18 +24,22 @@ export function createAdminService(prisma: PrismaClient) {
     },
 
     async getUsers() {
-      return prisma.user.findMany({
+      const users = await prisma.user.findMany({
         orderBy: { createdAt: "desc" },
         select: publicUserSelect
       });
+
+      return users.map(serializeUser);
     },
 
     async setUserStatus(userId: string, status: UserStatus) {
-      return prisma.user.update({
+      const user = await prisma.user.update({
         where: { id: userId },
         data: { status },
         select: publicUserSelect
       });
+
+      return serializeUser(user);
     },
 
     async getChats() {
@@ -67,7 +71,7 @@ export function createAdminService(prisma: PrismaClient) {
     },
 
     async getMessages() {
-      return prisma.message.findMany({
+      const messages = await prisma.message.findMany({
         orderBy: { createdAt: "desc" },
         take: 200,
         include: {
@@ -83,10 +87,12 @@ export function createAdminService(prisma: PrismaClient) {
           }
         }
       });
+
+      return messages.map(serializeMessage);
     },
 
     async getCalls() {
-      return prisma.call.findMany({
+      const calls = await prisma.call.findMany({
         orderBy: { createdAt: "desc" },
         include: {
           conversation: {
@@ -96,23 +102,20 @@ export function createAdminService(prisma: PrismaClient) {
               type: true
             }
           },
+          createdBy: {
+            select: publicUserSelect
+          },
           participants: {
-            select: {
-              id: true,
-              status: true,
-              joinedAt: true,
-              leftAt: true,
-              user: {
-                select: publicUserSelect
-              }
-            }
+            select: callParticipantSelect
           }
         }
       });
+
+      return calls.map(serializeCall);
     },
 
     async getAuditLog() {
-      return prisma.adminAction.findMany({
+      const actions = await prisma.adminAction.findMany({
         orderBy: { createdAt: "desc" },
         take: 200,
         include: {
@@ -121,6 +124,11 @@ export function createAdminService(prisma: PrismaClient) {
           }
         }
       });
+
+      return actions.map((action) => ({
+        ...action,
+        admin: serializeUser(action.admin)
+      }));
     },
 
     async getServerStatus() {

@@ -5,6 +5,7 @@ import { createAuthService } from "./auth.service.js";
 import { createCallService } from "./call.service.js";
 import { createChatService } from "./chat.service.js";
 import { createMessageService } from "./message.service.js";
+import { createUploadService } from "./upload.service.js";
 import { createUserService } from "./user.service.js";
 
 export function createServices(prisma: PrismaClient, env: AppEnv) {
@@ -13,6 +14,7 @@ export function createServices(prisma: PrismaClient, env: AppEnv) {
   const chatService = createChatService(prisma);
   const messageService = createMessageService(prisma);
   const callService = createCallService(prisma, env);
+  const uploadService = createUploadService(prisma, env);
   const adminService = createAdminService(prisma);
 
   return {
@@ -21,6 +23,7 @@ export function createServices(prisma: PrismaClient, env: AppEnv) {
     chatService,
     messageService,
     callService,
+    uploadService,
     adminService
   };
 }

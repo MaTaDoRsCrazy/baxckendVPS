@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.emessenger.app.core.utils.avatarFallback
 
 @Composable
 fun PulseLineGradientCard(
@@ -129,7 +130,7 @@ fun PulseLineAvatar(
     modifier: Modifier = Modifier,
     accent: Color = MaterialTheme.colorScheme.secondary
 ) {
-    val initials = title.trim().split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() }
+    val initials = avatarFallback(title)
     Box(
         modifier = modifier
             .clip(CircleShape)
@@ -141,7 +142,7 @@ fun PulseLineAvatar(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = initials.ifBlank { "P" },
+            text = initials,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onPrimary
         )
