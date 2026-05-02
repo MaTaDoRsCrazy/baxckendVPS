@@ -1,11 +1,11 @@
 import type { PrismaClient } from "@prisma/client";
-import { Server, type Socket } from "socket.io";
-import { z } from "zod";
 import type { Server as HttpServer } from "node:http";
+import { Server, type Socket } from "socket.io";
+import { z, type ZodSchema } from "zod";
 import type { AppEnv } from "../config/env.js";
 import { getSocketToken } from "../plugins/auth.js";
-import { verifyAccessToken } from "./jwt.js";
 import type { AppServices } from "../services/index.js";
+import { verifyAccessToken } from "./jwt.js";
 
 const sendMessageSchema = z.object({
   conversationId: z.string().min(1),
@@ -35,6 +35,35 @@ const startCallSchema = z.object({
 const callActionSchema = z.object({
   callId: z.string().min(1)
 });
+
+type Normalizer = (payload: unknown) => unknown;
+
+function payloadType(payload: unknown) {
+  if (payload === null) return "null";
+  if (Array.isArray(payload)) return "array";
+  return typeof payload;
+}
+
+function normalizeConversationPayload(payload: unknown) {
+  if (typeof payload === "string") {
+    return { conversationId: payload };
+  }
+  return payload;
+}
+
+function normalizeMessageReadPayload(payload: unknown) {
+  if (typeof payload === "string") {
+    return { messageId: payload };
+  }
+  return payload;
+}
+
+function normalizeCallActionPayload(payload: unknown) {
+  if (typeof payload === "string") {
+    return { callId: payload };
+  }
+  return payload;
+}
 
 export class RealtimeGateway {
   private readonly io: Server;
@@ -102,108 +131,224 @@ export class RealtimeGateway {
     return `conversation:${conversationId}`;
   }
 
-  private async handleConnection(socket: Socket) {
+  private emitSocketError(socket: Socket, code: string, message: string) {
+    socket.emit("error", { code, message });
+  }
+
+  private logInvalidPayload(event: string, userId: string, payload: unknown) {
+    console.warn("socket:event:invalid_payload", {
+      event,
+      userId,
+      payloadType: payloadType(payload)
+    });
+  }
+
+  private logEventError(event: string, userId: string, error: unknown) {
+    console.error("socket:event:error", {
+      event,
+      userId,
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+
+  private async runSafeSocketHandler<T>(
+    socket: Socket,
+    event: string,
+    payload: unknown,
+    schema: ZodSchema<T>,
+    handler: (input: T) => Promise<void>,
+    normalize: Normalizer = (value) => value
+  ) {
     const auth = socket.data.auth as { userId: string };
-    const { userId } = auth;
+    const normalizedPayload = normalize(payload);
+    const parsed = schema.safeParse(normalizedPayload);
 
-    socket.join(this.getUserRoom(userId));
-
-    const memberships = await this.prisma.conversationMember.findMany({
-      where: {
-        userId,
-        leftAt: null
-      },
-      select: { conversationId: true }
-    });
-
-    memberships.forEach((membership) => {
-      socket.join(this.getConversationRoom(membership.conversationId));
-    });
-
-    const currentSockets = this.onlineUsers.get(userId) ?? new Set<string>();
-    const wasOffline = currentSockets.size === 0;
-    currentSockets.add(socket.id);
-    this.onlineUsers.set(userId, currentSockets);
-
-    if (wasOffline) {
-      memberships.forEach((membership) => {
-        socket.to(this.getConversationRoom(membership.conversationId)).emit("user:online", { userId });
-      });
+    if (!parsed.success) {
+      this.logInvalidPayload(event, auth.userId, payload);
+      this.emitSocketError(socket, "INVALID_SOCKET_PAYLOAD", "Некорректные данные события");
+      return;
     }
 
-    socket.on("message:send", async (payload: unknown) => {
-      const parsed = sendMessageSchema.parse(payload) as any;
-      const message: any = await this.services.messageService.createMessage(userId, parsed);
-      this.emitToConversation(parsed.conversationId, "message:new", message);
-    });
+    try {
+      await handler(parsed.data);
+    } catch (error) {
+      this.logEventError(event, auth.userId, error);
+      this.emitSocketError(socket, "REALTIME_EVENT_ERROR", "Ошибка realtime-события");
+    }
+  }
 
-    socket.on("message:read", async (payload: unknown) => {
-      const parsed = messageReadSchema.parse(payload) as { messageId: string };
-      const message: any = await this.services.messageService.markRead(userId, parsed.messageId);
-      this.emitToConversation(message.conversationId, "message:read", {
-        messageId: message.id,
-        conversationId: message.conversationId,
-        userId
+  private async handleConnection(socket: Socket) {
+    try {
+      const auth = socket.data.auth as { userId: string };
+      const { userId } = auth;
+
+      socket.join(this.getUserRoom(userId));
+
+      const memberships = await this.prisma.conversationMember.findMany({
+        where: {
+          userId,
+          leftAt: null
+        },
+        select: { conversationId: true }
       });
-    });
 
-    socket.on("typing:start", async (payload: unknown) => {
-      const parsed = typingSchema.parse(payload) as { conversationId: string };
-      await this.services.chatService.assertConversationMember(parsed.conversationId, userId);
-      socket.to(this.getConversationRoom(parsed.conversationId)).emit("typing:start", {
-        conversationId: parsed.conversationId,
-        userId
-      });
-    });
-
-    socket.on("typing:stop", async (payload: unknown) => {
-      const parsed = typingSchema.parse(payload) as { conversationId: string };
-      await this.services.chatService.assertConversationMember(parsed.conversationId, userId);
-      socket.to(this.getConversationRoom(parsed.conversationId)).emit("typing:stop", {
-        conversationId: parsed.conversationId,
-        userId
-      });
-    });
-
-    socket.on("call:start", async (payload: unknown) => {
-      const parsed = startCallSchema.parse(payload) as { conversationId: string; type: "AUDIO" | "VIDEO" };
-      const call = await this.services.callService.startCall(userId, parsed);
-      socket.to(this.getConversationRoom(parsed.conversationId)).emit("call:incoming", call);
-    });
-
-    socket.on("call:accept", async (payload: unknown) => {
-      const parsed = callActionSchema.parse(payload) as { callId: string };
-      const call = await this.services.callService.acceptCall(userId, parsed.callId);
-      this.emitToConversation(call.conversationId, "call:accepted", call);
-    });
-
-    socket.on("call:reject", async (payload: unknown) => {
-      const parsed = callActionSchema.parse(payload) as { callId: string };
-      const call = await this.services.callService.rejectCall(userId, parsed.callId);
-      this.emitToConversation(call.conversationId, "call:rejected", call);
-    });
-
-    socket.on("call:end", async (payload: unknown) => {
-      const parsed = callActionSchema.parse(payload) as { callId: string };
-      const call = await this.services.callService.endCall(userId, parsed.callId);
-      this.emitToConversation(call.conversationId, "call:ended", call);
-    });
-
-    socket.on("disconnect", () => {
-      const sockets = this.onlineUsers.get(userId);
-      if (!sockets) {
-        return;
-      }
-
-      sockets.delete(socket.id);
-      if (sockets.size > 0) {
-        return;
-      }
-
-      this.onlineUsers.delete(userId);
       memberships.forEach((membership) => {
-        socket.to(this.getConversationRoom(membership.conversationId)).emit("user:offline", { userId });
+        socket.join(this.getConversationRoom(membership.conversationId));
       });
-    });
+
+      const currentSockets = this.onlineUsers.get(userId) ?? new Set<string>();
+      const wasOffline = currentSockets.size === 0;
+      currentSockets.add(socket.id);
+      this.onlineUsers.set(userId, currentSockets);
+
+      if (wasOffline) {
+        memberships.forEach((membership) => {
+          socket.to(this.getConversationRoom(membership.conversationId)).emit("user:online", { userId });
+        });
+      }
+
+      socket.on("message:send", (payload: unknown) => {
+        void this.runSafeSocketHandler(
+          socket,
+          "message:send",
+          payload,
+          sendMessageSchema,
+          async (parsed) => {
+            const message: any = await this.services.messageService.createMessage(userId, parsed as any);
+            this.emitToConversation(parsed.conversationId, "message:new", message);
+          }
+        );
+      });
+
+      socket.on("message:read", (payload: unknown) => {
+        void this.runSafeSocketHandler(
+          socket,
+          "message:read",
+          payload,
+          messageReadSchema,
+          async (parsed) => {
+            const message: any = await this.services.messageService.markRead(userId, parsed.messageId);
+            this.emitToConversation(message.conversationId, "message:read", {
+              messageId: message.id,
+              conversationId: message.conversationId,
+              userId
+            });
+          },
+          normalizeMessageReadPayload
+        );
+      });
+
+      socket.on("typing:start", (payload: unknown) => {
+        void this.runSafeSocketHandler(
+          socket,
+          "typing:start",
+          payload,
+          typingSchema,
+          async (parsed) => {
+            await this.services.chatService.assertConversationMember(parsed.conversationId, userId);
+            socket.to(this.getConversationRoom(parsed.conversationId)).emit("typing:start", {
+              conversationId: parsed.conversationId,
+              userId
+            });
+          },
+          normalizeConversationPayload
+        );
+      });
+
+      socket.on("typing:stop", (payload: unknown) => {
+        void this.runSafeSocketHandler(
+          socket,
+          "typing:stop",
+          payload,
+          typingSchema,
+          async (parsed) => {
+            await this.services.chatService.assertConversationMember(parsed.conversationId, userId);
+            socket.to(this.getConversationRoom(parsed.conversationId)).emit("typing:stop", {
+              conversationId: parsed.conversationId,
+              userId
+            });
+          },
+          normalizeConversationPayload
+        );
+      });
+
+      socket.on("call:start", (payload: unknown) => {
+        void this.runSafeSocketHandler(
+          socket,
+          "call:start",
+          payload,
+          startCallSchema,
+          async (parsed) => {
+            const call = await this.services.callService.startCall(userId, parsed);
+            socket.to(this.getConversationRoom(parsed.conversationId)).emit("call:incoming", call);
+          },
+          normalizeConversationPayload
+        );
+      });
+
+      socket.on("call:accept", (payload: unknown) => {
+        void this.runSafeSocketHandler(
+          socket,
+          "call:accept",
+          payload,
+          callActionSchema,
+          async (parsed) => {
+            const call = await this.services.callService.acceptCall(userId, parsed.callId);
+            this.emitToConversation(call.conversationId, "call:accepted", call);
+          },
+          normalizeCallActionPayload
+        );
+      });
+
+      socket.on("call:reject", (payload: unknown) => {
+        void this.runSafeSocketHandler(
+          socket,
+          "call:reject",
+          payload,
+          callActionSchema,
+          async (parsed) => {
+            const call = await this.services.callService.rejectCall(userId, parsed.callId);
+            this.emitToConversation(call.conversationId, "call:rejected", call);
+          },
+          normalizeCallActionPayload
+        );
+      });
+
+      socket.on("call:end", (payload: unknown) => {
+        void this.runSafeSocketHandler(
+          socket,
+          "call:end",
+          payload,
+          callActionSchema,
+          async (parsed) => {
+            const call = await this.services.callService.endCall(userId, parsed.callId);
+            this.emitToConversation(call.conversationId, "call:ended", call);
+          },
+          normalizeCallActionPayload
+        );
+      });
+
+      socket.on("disconnect", () => {
+        const sockets = this.onlineUsers.get(userId);
+        if (!sockets) {
+          return;
+        }
+
+        sockets.delete(socket.id);
+        if (sockets.size > 0) {
+          return;
+        }
+
+        this.onlineUsers.delete(userId);
+        memberships.forEach((membership) => {
+          socket.to(this.getConversationRoom(membership.conversationId)).emit("user:offline", { userId });
+        });
+      });
+    } catch (error) {
+      const auth = socket.data.auth as { userId?: string } | undefined;
+      this.logEventError("socket:connection", auth?.userId ?? "unknown", error);
+      this.emitSocketError(socket, "REALTIME_CONNECTION_ERROR", "Ошибка realtime-подключения");
+      socket.disconnect();
+    }
   }
 }
