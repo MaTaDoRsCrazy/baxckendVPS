@@ -10,7 +10,7 @@ export interface MessageListPage {
 export function login(identifier: string, password: string) {
   return apiRequest<ApiEnvelope<AuthResponse>>("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ identifier, password })
+    body: { identifier, password }
   });
 }
 
@@ -23,7 +23,7 @@ export function register(input: {
 }) {
   return apiRequest<ApiEnvelope<AuthResponse>>("/auth/register", {
     method: "POST",
-    body: JSON.stringify(input)
+    body: input
   });
 }
 
@@ -34,7 +34,7 @@ export function getMe() {
 export function logout(refreshToken: string) {
   return apiRequest<ApiEnvelope<{ success: boolean }>>("/auth/logout", {
     method: "POST",
-    body: JSON.stringify({ refreshToken })
+    body: { refreshToken }
   });
 }
 
@@ -64,7 +64,7 @@ export function updateProfile(
 ) {
   return apiRequest<ApiEnvelope<User>>("/users/me", {
     method: "PATCH",
-    body: JSON.stringify(input)
+    body: input
   });
 }
 
@@ -89,14 +89,14 @@ export function uploadAvatar(file: File) {
 export function createPrivateChat(participantId: string) {
   return apiRequest<ApiEnvelope<Conversation>>("/chats/private", {
     method: "POST",
-    body: JSON.stringify({ participantId })
+    body: { participantId }
   });
 }
 
 export function createGroupChat(title: string, memberIds: string[]) {
   return apiRequest<ApiEnvelope<Conversation>>("/chats/group", {
     method: "POST",
-    body: JSON.stringify({ title, memberIds })
+    body: { title, memberIds }
   });
 }
 
@@ -113,7 +113,7 @@ export function createMessage(input: {
 }) {
   return apiRequest<ApiEnvelope<Message>>("/messages", {
     method: "POST",
-    body: JSON.stringify(input)
+    body: input
   });
 }
 
@@ -126,7 +126,7 @@ export function markMessageRead(messageId: string) {
 export function startCall(input: { conversationId: string; type: "AUDIO" | "VIDEO" }) {
   return apiRequest<ApiEnvelope<Call>>("/calls/start", {
     method: "POST",
-    body: JSON.stringify(input)
+    body: input
   });
 }
 

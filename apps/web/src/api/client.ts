@@ -5,6 +5,11 @@ import { translateWebError } from "../lib/ui";
 const API_URL = import.meta.env.VITE_API_URL ?? "/api";
 let authCache: StoredAuth | null = loadAuth();
 
+type JsonBody = Record<string, unknown> | Array<unknown>;
+type ApiRequestInit = Omit<RequestInit, "body"> & {
+  body?: BodyInit | JsonBody | null;
+};
+
 export function setApiAuth(auth: StoredAuth | null) {
   authCache = auth;
   saveAuth(auth);
@@ -34,11 +39,26 @@ async function refreshAccessToken() {
   return auth;
 }
 
-export async function apiRequest<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
+export async function apiRequest<T>(path: string, init: ApiRequestInit = {}, retry = true): Promise<T> {
   const headers = new Headers(init.headers);
-  if (!(init.body instanceof FormData)) {
+  const { body, ...restInit } = init;
+  const nextInit: RequestInit = {
+    ...restInit
+  };
+
+  if (body === undefined || body === null) {
+    headers.delete("Content-Type");
+  } else if (body instanceof FormData) {
+    headers.delete("Content-Type");
+    nextInit.body = body;
+  } else if (typeof body === "string") {
     headers.set("Content-Type", "application/json");
+    nextInit.body = body;
+  } else {
+    headers.set("Content-Type", "application/json");
+    nextInit.body = JSON.stringify(body);
   }
+
   if (authCache?.accessToken) {
     headers.set("Authorization", `Bearer ${authCache.accessToken}`);
   }
@@ -46,7 +66,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}, retry 
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}`, {
-      ...init,
+      ...nextInit,
       headers
     });
   } catch {

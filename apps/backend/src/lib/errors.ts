@@ -58,6 +58,18 @@ export function registerErrorHandler() {
       });
     }
 
+    if (
+      error instanceof Error &&
+      error.message.includes("Body cannot be empty when content-type is set to 'application/json'")
+    ) {
+      return reply.status(400).send({
+        error: {
+          code: "EMPTY_JSON_BODY",
+          message: "Request body cannot be empty for application/json"
+        }
+      });
+    }
+
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return reply.status(409).send({
         error: {
