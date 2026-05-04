@@ -12,22 +12,22 @@ private val weekdayFormatter = DateTimeFormatter.ofPattern("EEE", ruLocale)
 
 fun translateError(message: String?): String {
     return when (message?.trim()) {
-        null, "" -> "Р§С‚Рѕ-С‚Рѕ РїРѕС€Р»Рѕ РЅРµ С‚Р°Рє"
-        "Invalid email" -> "РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ email"
-        "Password is required" -> "Р’РІРµРґРёС‚Рµ РїР°СЂРѕР»СЊ"
-        "User not found" -> "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РЅРµ РЅР°Р№РґРµРЅ"
-        "Invalid credentials" -> "РќРµРІРµСЂРЅС‹Р№ Р»РѕРіРёРЅ РёР»Рё РїР°СЂРѕР»СЊ"
-        "Network error" -> "РћС€РёР±РєР° СЃРµС‚Рё"
-        "Access denied" -> "Р”РѕСЃС‚СѓРї Р·Р°РїСЂРµС‰С‘РЅ"
-        "Message body or attachment is required" -> "РЎРѕРѕР±С‰РµРЅРёРµ РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїСѓСЃС‚С‹Рј"
-        "Call failed" -> "РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°С‡Р°С‚СЊ Р·РІРѕРЅРѕРє"
-        "Unsupported file type" -> "Р­С‚РѕС‚ С‚РёРї С„Р°Р№Р»Р° РЅРµ РїРѕРґРґРµСЂР¶РёРІР°РµС‚СЃСЏ"
-        "File is required" -> "Р’С‹Р±РµСЂРёС‚Рµ С„Р°Р№Р»"
-        "File exceeds 15MB limit" -> "Р¤Р°Р№Р» РїСЂРµРІС‹С€Р°РµС‚ Р»РёРјРёС‚ 15 РњР‘"
-        "User with provided username or email already exists" -> "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ СЃ С‚Р°РєРёРј РёРјРµРЅРµРј РёР»Рё email СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚"
-        "User is not a conversation member" -> "РЈ РІР°СЃ РЅРµС‚ РґРѕСЃС‚СѓРїР° Рє СЌС‚РѕРјСѓ С‡Р°С‚Сѓ"
-        "User is not a call participant", "User is not allowed to join this call" -> "РЈ РІР°СЃ РЅРµС‚ РґРѕСЃС‚СѓРїР° Рє СЌС‚РѕРјСѓ Р·РІРѕРЅРєСѓ"
-        "Call not found" -> "Р—РІРѕРЅРѕРє РЅРµ РЅР°Р№РґРµРЅ"
+        null, "" -> "Что-то пошло не так"
+        "Invalid email" -> "Некорректный email"
+        "Password is required" -> "Введите пароль"
+        "User not found" -> "Пользователь не найден"
+        "Invalid credentials" -> "Неверный логин или пароль"
+        "Network error" -> "Ошибка сети"
+        "Access denied" -> "Доступ запрещен"
+        "Message body or attachment is required" -> "Сообщение не может быть пустым"
+        "Call failed" -> "Не удалось начать звонок"
+        "Unsupported file type" -> "Этот тип файла не поддерживается"
+        "File is required" -> "Выберите файл"
+        "File exceeds 15MB limit" -> "Файл превышает лимит 15 МБ"
+        "User with provided username or email already exists" -> "Пользователь с таким именем или email уже существует"
+        "User is not a conversation member" -> "У вас нет доступа к этому чату"
+        "User is not a call participant", "User is not allowed to join this call" -> "У вас нет доступа к этому звонку"
+        "Call not found" -> "Звонок не найден"
         else -> message
     }
 }
@@ -47,14 +47,14 @@ fun formatDayDivider(value: String?): String {
         val date = Instant.parse(rawValue).atZone(ZoneId.systemDefault()).toLocalDate()
         val today = java.time.LocalDate.now()
         when {
-            date == today -> "РЎРµРіРѕРґРЅСЏ"
-            date == today.minusDays(1) -> "Р’С‡РµСЂР°"
+            date == today -> "Сегодня"
+            date == today.minusDays(1) -> "Вчера"
             date.year == today.year -> date.format(weekdayFormatter).replaceFirstChar { it.titlecase(ruLocale) }
             else -> date.format(dateFormatter)
         }
     }.getOrDefault("")
 }
 
-fun formatPresence(active: Boolean): String = if (active) "Р’ СЃРµС‚Рё" else "Р‘С‹Р»(Р°) РЅРµРґР°РІРЅРѕ"
+fun formatPresence(active: Boolean): String = if (active) "В сети" else "Был(а) недавно"
 
-fun formatCallType(type: String): String = if (type.uppercase() == "VIDEO") "Р’РёРґРµРѕР·РІРѕРЅРѕРє" else "РђСѓРґРёРѕР·РІРѕРЅРѕРє"
+fun formatCallType(type: String): String = if (type.uppercase() == "VIDEO") "Видеозвонок" else "Аудиозвонок"

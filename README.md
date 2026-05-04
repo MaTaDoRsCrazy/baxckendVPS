@@ -59,8 +59,14 @@ Android собирается отдельно из `apps/android`.
 - `ADMIN_EMAIL`
 - `ADMIN_USERNAME`
 - `ADMIN_PASSWORD`
+- `ADMIN_IP_WHITELIST`
 - `UPLOADS_DIR=/uploads`
 - `MAX_UPLOAD_SIZE_MB=15`
+- `GEOIP_PROVIDER=none`
+- `GEOIP_API_URL=`
+- `GEOIP_API_KEY=`
+- `LOGIN_MAX_ATTEMPTS_PER_IP=10`
+- `LOGIN_WINDOW_MINUTES=15`
 
 Если backend, web и admin уже работают на VPS, после `git pull` достаточно выполнить:
 
@@ -113,6 +119,15 @@ APK:
 
 - `DEPLOY.md`
 - `docs/WEB_APP.md`
+- `docs/SECURITY_PRIVACY.md`
 - `docs/ANDROID_API.md`
 - `docs/PULSELINE_ANDROID_UI.md`
 - `apps/android/README.md`
+
+## Security & Privacy
+
+- IP-адреса используются для безопасности: журнал входов, защита от brute force, блокировки и контроль активных сессий.
+- Геолокация по IP примерная и не показывает точный адрес пользователя.
+- VPN, proxy, NAT и мобильные сети могут искажать IP и геоданные.
+- Backend-секреты, включая `LIVEKIT_API_SECRET`, должны храниться только на VPS.
+- Дополнительные пояснения: `docs/SECURITY_PRIVACY.md`.

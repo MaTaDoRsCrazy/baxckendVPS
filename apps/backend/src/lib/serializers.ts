@@ -66,6 +66,61 @@ export const callParticipantSelect = {
   }
 } as const;
 
+export const loginEventBaseSelect = {
+  id: true,
+  eventType: true,
+  userId: true,
+  emailOrUsername: true,
+  ipAddress: true,
+  userAgent: true,
+  country: true,
+  city: true,
+  region: true,
+  asn: true,
+  provider: true,
+  success: true,
+  failureReason: true,
+  createdAt: true
+} as const;
+
+export const loginEventSelect = {
+  ...loginEventBaseSelect,
+  user: {
+    select: publicUserSelect
+  }
+} as const;
+
+export const userSessionSelect = {
+  id: true,
+  userId: true,
+  ipAddress: true,
+  userAgent: true,
+  country: true,
+  city: true,
+  lastSeenAt: true,
+  createdAt: true,
+  expiresAt: true,
+  revokedAt: true,
+  user: {
+    select: publicUserSelect
+  }
+} as const;
+
+export const ipBlockSelect = {
+  id: true,
+  ipAddress: true,
+  cidr: true,
+  reason: true,
+  isActive: true,
+  blockedByAdminId: true,
+  expiresAt: true,
+  createdAt: true,
+  updatedAt: true,
+  blockedByAdmin: {
+    select: publicUserSelect
+  }
+} as const;
+
 export function serializeUser<T extends Record<string, any>>(user: T) {
   return {
     ...user,
@@ -120,5 +175,26 @@ export function serializeCall<T extends Record<string, any>>(call: T) {
     participants: Array.isArray(call.participants)
       ? call.participants.map(serializeCallParticipant)
       : call.participants
+  };
+}
+
+export function serializeLoginEvent<T extends Record<string, any>>(event: T) {
+  return {
+    ...event,
+    user: event.user ? serializeUser(event.user) : event.user
+  };
+}
+
+export function serializeUserSession<T extends Record<string, any>>(session: T) {
+  return {
+    ...session,
+    user: session.user ? serializeUser(session.user) : session.user
+  };
+}
+
+export function serializeIpBlock<T extends Record<string, any>>(block: T) {
+  return {
+    ...block,
+    blockedByAdmin: block.blockedByAdmin ? serializeUser(block.blockedByAdmin) : block.blockedByAdmin
   };
 }

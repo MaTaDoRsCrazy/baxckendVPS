@@ -36,6 +36,10 @@ export function conflict(message = "Conflict"): AppError {
   return new AppError(409, "CONFLICT", message);
 }
 
+export function tooManyRequests(message = "Too many requests", code = "TOO_MANY_REQUESTS"): AppError {
+  return new AppError(429, code, message);
+}
+
 export function registerErrorHandler() {
   return async (error: unknown, request: FastifyRequest, reply: FastifyReply) => {
     if (error instanceof AppError) {

@@ -7,6 +7,7 @@ export const MESSAGE_DELIVERY_STATUSES = ["SENT", "DELIVERED", "READ"] as const;
 export const CALL_TYPES = ["AUDIO", "VIDEO"] as const;
 export const CALL_STATUSES = ["RINGING", "ACCEPTED", "REJECTED", "MISSED", "ENDED"] as const;
 export const CALL_PARTICIPANT_STATUSES = ["INVITED", "JOINED", "LEFT", "REJECTED", "MISSED"] as const;
+export const LOGIN_EVENT_TYPES = ["LOGIN", "REGISTER", "REFRESH", "LOGOUT"] as const;
 
 export const COUNTRY_OPTIONS = [
   { code: "RU", name: "Россия", dialCode: "+7" },
@@ -34,6 +35,7 @@ export type MessageDeliveryStatus = (typeof MESSAGE_DELIVERY_STATUSES)[number];
 export type CallType = (typeof CALL_TYPES)[number];
 export type CallStatus = (typeof CALL_STATUSES)[number];
 export type CallParticipantStatus = (typeof CALL_PARTICIPANT_STATUSES)[number];
+export type LoginEventType = (typeof LOGIN_EVENT_TYPES)[number];
 export type CountryOption = (typeof COUNTRY_OPTIONS)[number];
 
 export interface AuthTokens {
@@ -52,6 +54,14 @@ export interface AdminDashboardStats {
   messagesTotal: number;
   callsTotal: number;
   activeCalls: number;
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
 }
 
 export interface DisplayNameSource {
@@ -77,6 +87,59 @@ export interface User extends DisplayNameSource {
   lastSeenAt: string | Date | null;
   createdAt: string | Date;
   updatedAt: string | Date;
+}
+
+export interface LoginEvent {
+  id: string;
+  eventType: LoginEventType;
+  userId: string | null;
+  emailOrUsername: string | null;
+  ipAddress: string;
+  userAgent: string | null;
+  country: string | null;
+  city: string | null;
+  region: string | null;
+  asn: string | null;
+  provider: string | null;
+  success: boolean;
+  failureReason: string | null;
+  createdAt: string | Date;
+  user?: User | null;
+}
+
+export interface IpBlock {
+  id: string;
+  ipAddress: string | null;
+  cidr: string | null;
+  reason: string;
+  isActive: boolean;
+  blockedByAdminId: string | null;
+  expiresAt: string | Date | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  blockedByAdmin?: User | null;
+}
+
+export interface UserSession {
+  id: string;
+  userId: string;
+  refreshTokenHash?: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  country: string | null;
+  city: string | null;
+  lastSeenAt: string | Date;
+  createdAt: string | Date;
+  expiresAt: string | Date;
+  revokedAt: string | Date | null;
+  user?: User;
+  isCurrent?: boolean;
+}
+
+export interface AdminUser extends User {
+  recentLoginEvents: LoginEvent[];
+  lastLoginEvent: LoginEvent | null;
+  activeSessionsCount: number;
 }
 
 export interface ConversationMember {

@@ -7,7 +7,9 @@ import { access } from "node:fs/promises";
 import { env } from "./config/env.js";
 import { createAuditLogger } from "./lib/audit.js";
 import { registerErrorHandler } from "./lib/errors.js";
+import { extractBearerToken } from "./lib/jwt.js";
 import { createPrismaClient } from "./lib/prisma.js";
+import { getRequestMeta } from "./lib/request.js";
 import { resolveUploadAbsolutePath } from "./lib/uploads.js";
 import { RealtimeGateway } from "./lib/socket.js";
 import { registerApiRoutes } from "./routes/index.js";
@@ -43,10 +45,36 @@ export async function buildApp() {
     request.auth = null;
   });
 
+  app.addHook("preHandler", async (request) => {
+    if (!request.url.startsWith("/api")) {
+      return;
+    }
+
+    const routeConfig = (request.routeOptions.config ?? {}) as {
+      isPublic?: boolean;
+      skipIpSecurity?: boolean;
+    };
+    const meta = getRequestMeta(request);
+
+    if (!routeConfig.skipIpSecurity) {
+      await services.securityService.assertIpAllowed(meta.ipAddress);
+    }
+
+    if (routeConfig.isPublic) {
+      return;
+    }
+
+    const token = extractBearerToken(request.headers.authorization);
+    const { auth, session } = await services.securityService.authenticateAccessToken(token);
+    request.auth = auth;
+    await services.securityService.touchSessionActivity(session, meta);
+  });
+
   const gateway = new RealtimeGateway(app.server, prisma, env, {
     chatService: services.chatService,
     messageService: services.messageService,
-    callService: services.callService
+    callService: services.callService,
+    securityService: services.securityService
   });
 
   app.setErrorHandler(registerErrorHandler());

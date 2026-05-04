@@ -1,5 +1,13 @@
 import type { PrismaClient, UserStatus } from "@prisma/client";
-import { callParticipantSelect, publicUserSelect, serializeCall, serializeMessage, serializeUser } from "../lib/serializers.js";
+import {
+  callParticipantSelect,
+  loginEventBaseSelect,
+  publicUserSelect,
+  serializeCall,
+  serializeLoginEvent,
+  serializeMessage,
+  serializeUser
+} from "../lib/serializers.js";
 
 export function createAdminService(prisma: PrismaClient) {
   return {
@@ -24,12 +32,38 @@ export function createAdminService(prisma: PrismaClient) {
     },
 
     async getUsers() {
+      const now = new Date();
       const users = await prisma.user.findMany({
         orderBy: { createdAt: "desc" },
-        select: publicUserSelect
+        select: {
+          ...publicUserSelect,
+          loginEvents: {
+            orderBy: { createdAt: "desc" },
+            take: 3,
+            select: loginEventBaseSelect
+          },
+          sessions: {
+            where: {
+              revokedAt: null,
+              expiresAt: { gt: now }
+            },
+            select: {
+              id: true
+            }
+          }
+        }
       });
 
-      return users.map(serializeUser);
+      return users.map((user) => {
+        const recentLoginEvents = user.loginEvents.map(serializeLoginEvent);
+
+        return {
+          ...serializeUser(user),
+          recentLoginEvents,
+          lastLoginEvent: recentLoginEvents[0] ?? null,
+          activeSessionsCount: user.sessions.length
+        };
+      });
     },
 
     async setUserStatus(userId: string, status: UserStatus) {

@@ -26,7 +26,12 @@ export async function registerApiRoutes(
   const uploads = buildUploadsController(services, env);
   const admin = buildAdminController(services, env, auditLogger, gateway);
 
-  app.get("/health", async () => ({
+  app.get("/health", {
+    config: {
+      isPublic: true,
+      skipIpSecurity: true
+    }
+  }, async () => ({
     data: {
       status: "ok",
       timestamp: new Date().toISOString()
@@ -35,6 +40,7 @@ export async function registerApiRoutes(
 
   app.post("/auth/register", {
     config: {
+      isPublic: true,
       rateLimit: {
         max: 5,
         timeWindow: "1 minute"
@@ -43,14 +49,23 @@ export async function registerApiRoutes(
   }, auth.register);
   app.post("/auth/login", {
     config: {
+      isPublic: true,
       rateLimit: {
         max: 10,
         timeWindow: "1 minute"
       }
     }
   }, auth.login);
-  app.post("/auth/refresh", auth.refresh);
-  app.post("/auth/logout", auth.logout);
+  app.post("/auth/refresh", {
+    config: {
+      isPublic: true
+    }
+  }, auth.refresh);
+  app.post("/auth/logout", {
+    config: {
+      isPublic: true
+    }
+  }, auth.logout);
   app.get("/auth/me", auth.me);
 
   app.get("/users/me", users.me);
@@ -81,10 +96,17 @@ export async function registerApiRoutes(
   app.get("/admin/users", admin.users);
   app.patch("/admin/users/:userId/block", admin.block);
   app.patch("/admin/users/:userId/unblock", admin.unblock);
+  app.post("/admin/users/:userId/sessions/revoke", admin.revokeUserSessions);
   app.get("/admin/chats", admin.chats);
   app.get("/admin/messages", admin.messages);
   app.delete("/admin/messages/:messageId", admin.deleteMessage);
   app.get("/admin/calls", admin.calls);
+  app.get("/admin/security/login-events", admin.loginEvents);
+  app.get("/admin/security/ip-blocks", admin.ipBlocks);
+  app.post("/admin/security/ip-blocks", admin.createIpBlock);
+  app.delete("/admin/security/ip-blocks/:id", admin.deleteIpBlock);
+  app.get("/admin/security/sessions", admin.sessions);
+  app.post("/admin/security/sessions/:id/revoke", admin.revokeSession);
   app.get("/admin/audit-log", admin.auditLog);
   app.get("/admin/server/status", admin.serverStatus);
 }

@@ -66,6 +66,13 @@ enum CallParticipantStatus {
   MISSED
 }
 
+enum LoginEventType {
+  LOGIN
+  REGISTER
+  REFRESH
+  LOGOUT
+}
+
 model User {
   id                    String               @id @default(cuid())
   phone                 String?
@@ -82,6 +89,7 @@ model User {
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
   sessions              Session[]
+  loginEvents           LoginEvent[]
   createdConversations  Conversation[]       @relation("ConversationCreator")
   memberships           ConversationMember[]
   sentMessages          Message[]            @relation("MessageSender")
@@ -89,6 +97,7 @@ model User {
   createdCalls          Call[]               @relation("CallCreator")
   callParticipants      CallParticipant[]
   adminActions          AdminAction[]
+  blockedIpEntries      IpBlock[]            @relation("IpBlockAdmin")
 }
 
 model Session {
@@ -97,11 +106,53 @@ model Session {
   refreshTokenHash String
   userAgent        String?
   ipAddress        String?
+  country          String?
+  city             String?
+  lastSeenAt       DateTime @default(now())
   expiresAt        DateTime
+  revokedAt        DateTime?
   createdAt        DateTime @default(now())
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([ipAddress])
+}
+
+model LoginEvent {
+  id              String         @id @default(cuid())
+  eventType       LoginEventType @default(LOGIN)
+  userId          String?
+  emailOrUsername String?
+  ipAddress       String
+  userAgent       String?
+  country         String?
+  city            String?
+  region          String?
+  asn             String?
+  provider        String?
+  success         Boolean
+  failureReason   String?
+  createdAt       DateTime       @default(now())
+  user            User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([ipAddress, createdAt])
+}
+
+model IpBlock {
+  id               String   @id @default(cuid())
+  ipAddress        String?
+  cidr             String?
+  reason           String
+  isActive         Boolean  @default(true)
+  blockedByAdminId String?
+  expiresAt        DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  blockedByAdmin   User?    @relation("IpBlockAdmin", fields: [blockedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([ipAddress])
+  @@index([cidr])
 }
 
 model Conversation {

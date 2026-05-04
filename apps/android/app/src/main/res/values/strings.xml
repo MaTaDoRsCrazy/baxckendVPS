@@ -31,6 +31,16 @@
     <string name="select_chat_hint">Откройте диалог слева и продолжайте общение без переключений.</string>
     <string name="profile">Профиль</string>
     <string name="edit_profile">Редактировать профиль</string>
+    <string name="profile_subtitle">Ваш профиль PulseLine</string>
+    <string name="profile_details_title">Данные профиля</string>
+    <string name="profile_details_subtitle">Основная информация аккаунта</string>
+    <string name="edit_profile_subtitle">Имя, контакты, описание и аватар</string>
+    <string name="user_fallback">Пользователь</string>
+    <string name="not_specified">Не указано</string>
+    <string name="full_name">Имя и фамилия</string>
+    <string name="country">Страна</string>
+    <string name="about_me">О себе</string>
+    <string name="upload_avatar">Загрузить аватар</string>
     <string name="save">Сохранить</string>
     <string name="saved">Сохранено</string>
     <string name="settings">Настройки</string>

@@ -77,13 +77,13 @@ fun EditProfileScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            PulseLineSectionCard(title = stringResource(R.string.edit_profile), subtitle = "Имя, контакты, описание и аватар") {
-                PulseLineTextField(value = fullName, onValueChange = { fullName = it }, label = "Имя и фамилия")
+            PulseLineSectionCard(title = stringResource(R.string.edit_profile), subtitle = stringResource(R.string.edit_profile_subtitle)) {
+                PulseLineTextField(value = fullName, onValueChange = { fullName = it }, label = stringResource(R.string.full_name))
                 PulseLineTextField(value = username, onValueChange = { username = it }, label = stringResource(R.string.username))
                 PulseLineTextField(value = email, onValueChange = { email = it }, label = stringResource(R.string.email))
                 PulseLineTextField(value = phone, onValueChange = { phone = it }, label = stringResource(R.string.phone))
-                PulseLineTextField(value = country, onValueChange = { country = it }, label = "Страна")
-                PulseLineTextField(value = about, onValueChange = { about = it }, label = "О себе", singleLine = false)
+                PulseLineTextField(value = country, onValueChange = { country = it }, label = stringResource(R.string.country))
+                PulseLineTextField(value = about, onValueChange = { about = it }, label = stringResource(R.string.about_me), singleLine = false)
                 uiState.error?.let {
                     Text(text = it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 }
@@ -91,7 +91,7 @@ fun EditProfileScreen(
                     text = if (uiState.saving) stringResource(R.string.loading) else stringResource(R.string.save),
                     onClick = { viewModel.save(fullName, username, email, phone, about, country) }
                 )
-                PulseLineOutlinedButton(text = "Загрузить аватар", onClick = { avatarLauncher.launch("image/*") })
+                PulseLineOutlinedButton(text = stringResource(R.string.upload_avatar), onClick = { avatarLauncher.launch("image/*") })
             }
         }
     }

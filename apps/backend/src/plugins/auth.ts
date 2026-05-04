@@ -6,6 +6,10 @@ import { extractBearerToken, verifyAccessToken } from "../lib/jwt.js";
 import { forbidden, unauthorized } from "../lib/errors.js";
 
 export function getRequestAuth(request: FastifyRequest, env: AppEnv): RequestAuth {
+  if (request.auth) {
+    return request.auth;
+  }
+
   const token = extractBearerToken(request.headers.authorization);
   const payload = verifyAccessToken(env, token);
 

@@ -4,12 +4,16 @@ import { createAdminService } from "./admin.service.js";
 import { createAuthService } from "./auth.service.js";
 import { createCallService } from "./call.service.js";
 import { createChatService } from "./chat.service.js";
+import { createGeoIpService } from "./geoip.service.js";
 import { createMessageService } from "./message.service.js";
+import { createSecurityService } from "./security.service.js";
 import { createUploadService } from "./upload.service.js";
 import { createUserService } from "./user.service.js";
 
 export function createServices(prisma: PrismaClient, env: AppEnv) {
-  const authService = createAuthService(prisma, env);
+  const geoIpService = createGeoIpService(env);
+  const securityService = createSecurityService(prisma, env, geoIpService);
+  const authService = createAuthService(prisma, env, securityService);
   const userService = createUserService(prisma);
   const chatService = createChatService(prisma);
   const messageService = createMessageService(prisma);
@@ -24,7 +28,9 @@ export function createServices(prisma: PrismaClient, env: AppEnv) {
     messageService,
     callService,
     uploadService,
-    adminService
+    adminService,
+    geoIpService,
+    securityService
   };
 }
 

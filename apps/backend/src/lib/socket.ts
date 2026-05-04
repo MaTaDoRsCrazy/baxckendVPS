@@ -3,9 +3,9 @@ import type { Server as HttpServer } from "node:http";
 import { Server, type Socket } from "socket.io";
 import { z, type ZodSchema } from "zod";
 import type { AppEnv } from "../config/env.js";
+import { normalizeIp } from "./ip.js";
 import { getSocketToken } from "../plugins/auth.js";
 import type { AppServices } from "../services/index.js";
-import { verifyAccessToken } from "./jwt.js";
 
 const sendMessageSchema = z.object({
   conversationId: z.string().min(1),
@@ -38,6 +38,30 @@ const callActionSchema = z.object({
 
 type Normalizer = (payload: unknown) => unknown;
 
+function getSocketClientIp(socket: Socket) {
+  const forwarded = socket.handshake.headers["x-forwarded-for"];
+  const forwardedValue = Array.isArray(forwarded) ? forwarded.join(",") : forwarded;
+
+  if (typeof forwardedValue === "string") {
+    const candidates = forwardedValue
+      .split(",")
+      .map((value) => normalizeIp(value))
+      .filter((value): value is string => Boolean(value));
+
+    if (candidates.length > 0) {
+      return candidates[0];
+    }
+  }
+
+  return normalizeIp(socket.handshake.address);
+}
+
+function getSocketUserAgent(socket: Socket) {
+  const rawUserAgent = socket.handshake.headers["user-agent"];
+  const userAgent = Array.isArray(rawUserAgent) ? rawUserAgent[0] : rawUserAgent;
+  return typeof userAgent === "string" && userAgent.trim().length > 0 ? userAgent.trim() : null;
+}
+
 function payloadType(payload: unknown) {
   if (payload === null) return "null";
   if (Array.isArray(payload)) return "array";
@@ -68,12 +92,13 @@ function normalizeCallActionPayload(payload: unknown) {
 export class RealtimeGateway {
   private readonly io: Server;
   private readonly onlineUsers = new Map<string, Set<string>>();
+  private readonly sessionSockets = new Map<string, Set<string>>();
 
   constructor(
     server: HttpServer,
     private readonly prisma: PrismaClient,
     private readonly env: AppEnv,
-    private readonly services: Pick<AppServices, "chatService" | "messageService" | "callService">
+    private readonly services: Pick<AppServices, "chatService" | "messageService" | "callService" | "securityService">
   ) {
     this.io = new Server(server, {
       cors: {
@@ -83,19 +108,28 @@ export class RealtimeGateway {
     });
 
     this.io.use((socket, next) => {
-      try {
-        const rawToken =
-          typeof socket.handshake.auth.token === "string"
-            ? socket.handshake.auth.token
-            : socket.handshake.headers.authorization?.replace("Bearer ", "");
+      void (async () => {
+        try {
+          const meta = {
+            ipAddress: getSocketClientIp(socket),
+            userAgent: getSocketUserAgent(socket)
+          };
+          await this.services.securityService.assertIpAllowed(meta.ipAddress);
 
-        const token = getSocketToken(rawToken);
-        const auth = verifyAccessToken(this.env, token);
-        socket.data.auth = auth;
-        next();
-      } catch (error) {
-        next(error as Error);
-      }
+          const rawToken =
+            typeof socket.handshake.auth.token === "string"
+              ? socket.handshake.auth.token
+              : socket.handshake.headers.authorization?.replace("Bearer ", "");
+
+          const token = getSocketToken(rawToken);
+          const { auth, session } = await this.services.securityService.authenticateAccessToken(token);
+          await this.services.securityService.touchSessionActivity(session, meta);
+          socket.data.auth = auth;
+          next();
+        } catch (error) {
+          next(error as Error);
+        }
+      })();
     });
 
     this.io.on("connection", (socket) => {
@@ -109,6 +143,24 @@ export class RealtimeGateway {
 
   emitToUser(userId: string, event: string, payload: unknown) {
     this.io.to(this.getUserRoom(userId)).emit(event, payload);
+  }
+
+  disconnectSession(sessionId: string) {
+    const socketIds = this.sessionSockets.get(sessionId);
+    if (!socketIds?.size) {
+      return;
+    }
+
+    Array.from(socketIds).forEach((socketId) => {
+      this.io.sockets.sockets.get(socketId)?.disconnect(true);
+    });
+    this.sessionSockets.delete(sessionId);
+  }
+
+  disconnectSessions(sessionIds: string[]) {
+    sessionIds.forEach((sessionId) => {
+      this.disconnectSession(sessionId);
+    });
   }
 
   joinConversationForUser(userId: string, conversationId: string) {
@@ -179,8 +231,8 @@ export class RealtimeGateway {
 
   private async handleConnection(socket: Socket) {
     try {
-      const auth = socket.data.auth as { userId: string };
-      const { userId } = auth;
+      const auth = socket.data.auth as { userId: string; sessionId: string };
+      const { userId, sessionId } = auth;
 
       socket.join(this.getUserRoom(userId));
 
@@ -200,6 +252,10 @@ export class RealtimeGateway {
       const wasOffline = currentSockets.size === 0;
       currentSockets.add(socket.id);
       this.onlineUsers.set(userId, currentSockets);
+
+      const sessionSocketIds = this.sessionSockets.get(sessionId) ?? new Set<string>();
+      sessionSocketIds.add(socket.id);
+      this.sessionSockets.set(sessionId, sessionSocketIds);
 
       if (wasOffline) {
         memberships.forEach((membership) => {
@@ -336,10 +392,20 @@ export class RealtimeGateway {
 
         sockets.delete(socket.id);
         if (sockets.size > 0) {
+          const currentSessionSockets = this.sessionSockets.get(sessionId);
+          currentSessionSockets?.delete(socket.id);
+          if (currentSessionSockets && currentSessionSockets.size === 0) {
+            this.sessionSockets.delete(sessionId);
+          }
           return;
         }
 
         this.onlineUsers.delete(userId);
+        const currentSessionSockets = this.sessionSockets.get(sessionId);
+        currentSessionSockets?.delete(socket.id);
+        if (currentSessionSockets && currentSessionSockets.size === 0) {
+          this.sessionSockets.delete(sessionId);
+        }
         memberships.forEach((membership) => {
           socket.to(this.getConversationRoom(membership.conversationId)).emit("user:offline", { userId });
         });

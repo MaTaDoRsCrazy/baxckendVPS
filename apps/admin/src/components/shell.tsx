@@ -7,6 +7,7 @@ const links = [
   { to: "/chats", label: "Чаты" },
   { to: "/messages", label: "Сообщения" },
   { to: "/calls", label: "Звонки" },
+  { to: "/security", label: "Безопасность" },
   { to: "/audit-log", label: "Журнал действий" },
   { to: "/server", label: "Сервер" }
 ];
